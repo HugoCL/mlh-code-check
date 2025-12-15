@@ -3,8 +3,15 @@
 import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
+import {
+	Field,
+	FieldContent,
+	FieldDescription,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
 	Select,
 	SelectContent,
@@ -12,15 +19,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	Field,
-	FieldLabel,
-	FieldDescription,
-	FieldError,
-	FieldGroup,
-	FieldContent,
-} from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { EvaluationTypeConfig } from "./evaluation-type-config";
 
 type EvaluationType = "yes_no" | "range" | "comments" | "code_examples";

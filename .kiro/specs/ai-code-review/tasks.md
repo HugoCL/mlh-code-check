@@ -68,22 +68,24 @@
     - Implement Convex internal function to load templates on init
     - Add systemTemplateId field for stable references
     - _Requirements: 3.1, 3.5_
+  - [x] 3.2 Implement template listing and usage
 
 
-  - [ ] 3.2 Implement template listing and usage
     - Update listRubrics to include system templates
     - Add isSystemTemplate flag to UI display
-
-
     - Implement duplicateSystemTemplate mutation
     - _Requirements: 3.2, 3.3, 3.4_
-  - [ ] 3.3 Write property tests for template operations
+  - [x] 3.3 Write property tests for template operations
     - **Property 7: Rubric listing includes both types**
     - **Property 8: System template direct usage**
     - **Property 9: Template duplication creates user copy**
     - **Validates: Requirements 3.2, 3.3, 3.4**
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Implement repository connection

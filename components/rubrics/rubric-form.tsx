@@ -1,30 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "@tanstack/react-form";
-import { useMutation, useQuery } from "convex/react";
-import * as z from "zod";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-	Field,
-	FieldLabel,
-	FieldDescription,
-	FieldError,
-	FieldGroup,
-} from "@/components/ui/field";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
-import { RubricItemForm } from "./rubric-item-form";
-import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	Add01Icon,
 	ArrowLeft02Icon,
 	Delete02Icon,
 } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useForm } from "@tanstack/react-form";
+import { useMutation, useQuery } from "convex/react";
+import { useState } from "react";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { RubricItemForm } from "./rubric-item-form";
 
 interface RubricFormProps {
 	userId: Id<"users">;

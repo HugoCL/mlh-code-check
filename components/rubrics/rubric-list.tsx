@@ -1,35 +1,35 @@
 "use client";
 
+import {
+	Add01Icon,
+	Copy01Icon,
+	Delete02Icon,
+	Edit02Icon,
+	FileEditIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
-	CardHeader,
-	CardTitle,
-	CardDescription,
 	CardAction,
 	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
 	Empty,
+	EmptyContent,
+	EmptyDescription,
 	EmptyHeader,
 	EmptyMedia,
 	EmptyTitle,
-	EmptyDescription,
-	EmptyContent,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-	Edit02Icon,
-	Delete02Icon,
-	Add01Icon,
-	FileEditIcon,
-	Copy01Icon,
-} from "@hugeicons/core-free-icons";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface RubricListProps {
 	userId: Id<"users">;
