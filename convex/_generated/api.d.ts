@@ -9,19 +9,21 @@
  */
 
 import type * as http from "../http.js";
+import type * as repositories from "../repositories.js";
 import type * as rubrics from "../rubrics.js";
 import type * as users from "../users.js";
 
 import type {
-	ApiFromModules,
-	FilterApi,
-	FunctionReference,
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-	http: typeof http;
-	rubrics: typeof rubrics;
-	users: typeof users;
+  http: typeof http;
+  repositories: typeof repositories;
+  rubrics: typeof rubrics;
+  users: typeof users;
 }>;
 
 /**
@@ -33,8 +35,8 @@ declare const fullApi: ApiFromModules<{
  * ```
  */
 export declare const api: FilterApi<
-	typeof fullApi,
-	FunctionReference<any, "public">
+  typeof fullApi,
+  FunctionReference<any, "public">
 >;
 
 /**
@@ -46,8 +48,8 @@ export declare const api: FilterApi<
  * ```
  */
 export declare const internal: FilterApi<
-	typeof fullApi,
-	FunctionReference<any, "internal">
+  typeof fullApi,
+  FunctionReference<any, "internal">
 >;
 
 export declare const components: {};

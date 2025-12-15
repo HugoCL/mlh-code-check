@@ -82,23 +82,25 @@
     - **Validates: Requirements 3.2, 3.3, 3.4**
 
 - [x] 4. Checkpoint - Ensure all tests pass
-
-
-
-
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement repository connection
-  - [ ] 5.1 Create repository data model and storage
+- [x] 5. Implement repository connection
+
+
+  - [x] 5.1 Create repository data model and storage
+
     - Add repositories table to schema
     - Implement connectRepository mutation
     - Implement listRepositories query
     - Implement disconnectRepository mutation
     - _Requirements: 4.2_
-  - [ ] 5.2 Write property test for repository storage
+  - [x] 5.2 Write property test for repository storage
     - **Property 10: Repository storage completeness**
     - **Validates: Requirements 4.2**
-  - [ ] 5.3 Build repository connection UI
+  - [x] 5.3 Build repository connection UI
+
+
+
     - Create RepositoryList component
     - Create RepositorySelector component for analysis
     - Implement repository search/filter
