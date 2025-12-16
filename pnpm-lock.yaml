@@ -30,10 +30,10 @@ importers:
         specifier: ^1.27.4
         version: 1.27.4(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       '@trigger.dev/react-hooks':
-        specifier: ^4.3.0
+        specifier: 4.3.0
         version: 4.3.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.9.3)
       '@trigger.dev/sdk':
-        specifier: ^4.3.0
+        specifier: 4.3.0
         version: 4.3.0(ai@5.0.113(zod@4.2.0))(typescript@5.9.3)(zod@4.2.0)
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
