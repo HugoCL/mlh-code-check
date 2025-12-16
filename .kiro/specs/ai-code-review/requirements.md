@@ -13,6 +13,7 @@ This document specifies the requirements for an AI-powered code review applicati
 - **Analysis_Job**: A single execution of code review against a repository using a specific rubric
 - **Trigger_Task**: A background job executed via Trigger.dev that performs parallelized code analysis
 - **Progress_Reporter**: The component that streams analysis status updates from Trigger tasks to the UI
+- **One_Off_Analysis**: An analysis performed on a public repository by URL without requiring the user to connect the repository to their account
 
 ## Requirements
 
@@ -36,7 +37,7 @@ This document specifies the requirements for an AI-powered code review applicati
 1. WHEN a user creates a new rubric THEN the Code_Review_System SHALL store the rubric with a name, description, and empty item list in Convex
 2. WHEN a user adds a rubric item THEN the Code_Review_System SHALL require a name, description, evaluation type, and optional configuration parameters
 3. WHEN a user selects "yes/no" as evaluation type THEN the Code_Review_System SHALL configure the item to return a boolean response with optional justification
-4. WHEN a user selects "range" as evaluation type THEN the Code_Review_System SHALL require minimum and maximum values and return a numeric score within that range
+4. WHEN a user selects "range" as evaluation type THEN the Code_Review_System SHALL require minimum and maximum values, and guidance text describing when each score level should be selected, and return a numeric score within that range
 5. WHEN a user selects "comments" as evaluation type THEN the Code_Review_System SHALL configure the item to return free-form text feedback
 6. WHEN a user selects "code_examples" as evaluation type THEN the Code_Review_System SHALL configure the item to return relevant code snippets from the repository with explanations
 7. WHEN a user edits an existing rubric THEN the Code_Review_System SHALL update the rubric in Convex and reflect changes immediately
@@ -63,6 +64,20 @@ This document specifies the requirements for an AI-powered code review applicati
 1. WHEN a user initiates repository connection THEN the Code_Review_System SHALL use GitHub's remote MCP to authenticate and list accessible repositories
 2. WHEN a user selects a repository THEN the Code_Review_System SHALL validate access permissions and store the repository reference
 3. WHEN repository access is revoked externally THEN the Code_Review_System SHALL detect the failure during analysis and notify the user with a clear error message
+
+### Requirement 9: One-Off Public Repository Analysis
+
+**User Story:** As a user, I want to analyze a public GitHub repository by pasting its URL, so that I can quickly evaluate code without connecting the repository to my account.
+
+#### Acceptance Criteria
+
+1. WHEN a user enters a valid GitHub repository URL in the one-off analysis form THEN the Code_Review_System SHALL parse the URL and extract the owner, repository name, and optional branch
+2. WHEN a user submits a one-off analysis request THEN the Code_Review_System SHALL validate that the repository is publicly accessible before starting the analysis
+3. WHEN a one-off analysis is created THEN the Code_Review_System SHALL store the analysis with a reference to the repository URL rather than a connected repository ID
+4. WHEN a one-off analysis completes THEN the Code_Review_System SHALL display results identically to connected repository analyses
+5. WHEN a user does not specify a branch in the URL THEN the Code_Review_System SHALL default to the repository's main or master branch
+6. WHEN a user enters an invalid or inaccessible repository URL THEN the Code_Review_System SHALL display a clear error message indicating the URL is invalid or the repository is not publicly accessible
+7. WHEN viewing analysis history THEN the Code_Review_System SHALL display one-off analyses with the repository URL and distinguish them from connected repository analyses
 
 ### Requirement 5: Analysis Execution
 

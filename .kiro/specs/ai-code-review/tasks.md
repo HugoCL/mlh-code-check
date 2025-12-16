@@ -227,6 +227,104 @@
 
 - [x] 12. Final Checkpoint - Ensure all tests pass
 
+  - Ensure all tests pass, ask the user if questions arise.
 
+- [x] 13. Implement one-off public repository analysis
 
+  - [x] 13.1 Create GitHub URL parser utility
+    - Create lib/github-url.ts with parseGitHubUrl function
+    - Support https://github.com/owner/repo format
+    - Support https://github.com/owner/repo/tree/branch format
+    - Support git@github.com:owner/repo.git format
+    - Return parsed owner, repo, and optional branch
+    - Return error for invalid/non-GitHub URLs
+    - _Requirements: 9.1, 9.5, 9.6_
+
+  - [x] 13.2 Write property tests for URL parsing
+    - **Property 20: GitHub URL parsing correctness**
+    - **Property 21: GitHub URL parsing round-trip**
+    - **Property 23: Branch default behavior**
+    - **Property 24: Invalid URL error handling**
+    - **Validates: Requirements 9.1, 9.5, 9.6**
+
+  - [x] 13.3 Update Convex schema for one-off analyses
+    - Make repositoryId optional in analyses table
+    - Add repositoryUrl field for one-off analyses
+    - Add repositoryOwner, repositoryName, branch fields
+    - Update indexes as needed
+    - _Requirements: 9.3_
+
+  - [x] 13.4 Create one-off analysis mutations
+    - Implement createOneOffAnalysis mutation
+    - Validate URL format before creating analysis
+    - Store repositoryUrl instead of repositoryId
+    - Populate owner/name/branch from parsed URL
+    - _Requirements: 9.2, 9.3_
+
+  - [x] 13.5 Write property test for one-off storage
+    - **Property 22: One-off analysis storage structure**
+    - **Validates: Requirements 9.3**
+
+  - [x] 13.6 Update analysis orchestrator for one-off
+    - Modify analyzeRepository task to accept repositoryUrl
+    - Fetch public repo content without authentication
+    - Handle branch resolution for default branch
+    - _Requirements: 9.2, 9.4, 9.5_
+
+  - [x] 13.7 Build one-off analysis UI
+    - Create OneOffAnalysisForm component with URL input
+    - Add URL validation with real-time feedback
+    - Add branch input (optional, defaults to main/master)
+    - Integrate with rubric selector
+    - Add to new analysis page as alternative to connected repos
+    - _Requirements: 9.1, 9.2, 9.5, 9.6_
+
+  - [x] 13.8 Update analysis history for one-off
+    - Update listAnalyses query to include one-off analyses
+    - Update AnalysisCard to display repository URL for one-off
+    - Add visual distinction between one-off and connected analyses
+    - _Requirements: 9.7_
+
+  - [x] 13.9 Write property test for history identification
+    - **Property 25: One-off analysis history identification**
+    - **Validates: Requirements 9.7**
+
+- [x] 14. Implement range evaluation guidance requirement
+  - [x] 14.1 Update Convex schema for range guidance
+    - Add rangeGuidance field to rubricItems config in schema.ts
+    - Field should be optional in schema but required for range type items
+    - _Requirements: 2.4_
+
+  - [x] 14.2 Update rubric item validation for range type
+    - Modify addRubricItem mutation to require rangeGuidance for range type
+    - Modify updateRubricItem mutation to validate rangeGuidance for range type
+    - Return validation error if range type lacks guidance text
+    - _Requirements: 2.4_
+
+  - [x] 14.3 Write property test for range guidance validation
+    - **Property 4.1: Range item requires guidance text**
+    - **Validates: Requirements 2.4**
+
+  - [x] 14.4 Update EvaluationTypeConfig UI for range type
+    - Add textarea field for rangeGuidance in RangeConfig component
+    - Add placeholder text explaining expected format (e.g., "1 = No tests, 5 = Comprehensive coverage")
+    - Make field required with validation feedback
+    - _Requirements: 2.4_
+
+  - [x] 14.5 Update RubricItemConfig interface
+    - Add rangeGuidance?: string to RubricItemConfig type
+    - Update any type definitions that reference this interface
+    - _Requirements: 2.4_
+
+  - [x] 14.6 Update AI prompt for range evaluation
+    - Modify evaluateRubricItem task to include rangeGuidance in prompt
+    - Ensure AI uses guidance to determine appropriate score
+    - _Requirements: 2.4_
+
+  - [x] 14.7 Update system templates with range guidance
+    - Add rangeGuidance to any existing range-type items in templates
+    - Ensure templates pass validation
+    - _Requirements: 2.4, 3.1_
+
+- [ ] 15. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

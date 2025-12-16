@@ -1,8 +1,8 @@
-# Design Document: AI Code Review System
+# Design Document: MLH Code Inspector System
 
 ## Overview
 
-The AI Code Review System is a web application that enables users to analyze GitHub repositories against customizable evaluation rubrics using AI agents. The system leverages Trigger.dev for parallelized background task execution, GitHub's remote MCP for repository access, the Vercel AI SDK for model interactions, Clerk for authentication, and Convex for real-time data management.
+The MLH Code Inspector System is a web application that enables users to analyze GitHub repositories against customizable evaluation rubrics using AI agents. The system leverages Trigger.dev for parallelized background task execution, GitHub's remote MCP for repository access, the Vercel AI SDK for model interactions, Clerk for authentication, and Convex for real-time data management.
 
 The architecture follows an orchestrator-workers pattern where a main analysis task coordinates parallel evaluation of individual rubric items, with real-time progress updates streamed to the frontend via Trigger.dev Realtime and Convex subscriptions.
 
@@ -96,6 +96,7 @@ interface RubricItemConfig {
   // For range
   minValue?: number;
   maxValue?: number;
+  rangeGuidance?: string; // Required: describes when each score level should be selected
   
   // For code_examples
   maxExamples?: number;
@@ -164,6 +165,46 @@ interface Repository {
 }
 ```
 
+### 4.1 One-Off Repository Analysis Service
+
+**OneOffRepositoryService (Convex Functions + Utilities)**
+- `parseGitHubUrl`: Parses GitHub URL and extracts owner, repo name, and optional branch
+- `validatePublicAccess`: Checks if repository is publicly accessible via GitHub API
+- `createOneOffAnalysis`: Creates analysis with repository URL reference instead of connected repo ID
+
+**URL Parser (lib/github-url.ts)**
+Supports multiple GitHub URL formats:
+- `https://github.com/owner/repo`
+- `https://github.com/owner/repo.git`
+- `https://github.com/owner/repo/tree/branch`
+- `https://github.com/owner/repo/tree/branch/path`
+- `git@github.com:owner/repo.git`
+
+**Interfaces:**
+```typescript
+interface ParsedGitHubUrl {
+  owner: string;
+  repo: string;
+  branch?: string; // undefined means use default branch
+}
+
+interface OneOffRepositoryInfo {
+  url: string;
+  owner: string;
+  name: string;
+  branch: string; // resolved to actual branch (main/master/specified)
+  isPublic: boolean;
+}
+
+interface GitHubUrlParseResult {
+  success: true;
+  data: ParsedGitHubUrl;
+} | {
+  success: false;
+  error: string;
+}
+```
+
 ### 5. Analysis Orchestration (Trigger.dev Tasks)
 
 **analyzeRepository Task (Orchestrator)**
@@ -184,7 +225,11 @@ interface Repository {
 ```typescript
 interface AnalysisJobPayload {
   analysisId: string; // Convex ID
-  repositoryId: string;
+  repositoryId?: string; // For connected repositories
+  repositoryUrl?: string; // For one-off analyses
+  repositoryOwner: string;
+  repositoryName: string;
+  branch: string;
   rubricId: string;
   userId: string;
 }
@@ -262,7 +307,11 @@ type ItemStatus = "pending" | "processing" | "completed" | "failed";
 interface Analysis {
   _id: Id<"analyses">;
   userId: Id<"users">;
-  repositoryId: Id<"repositories">;
+  repositoryId?: Id<"repositories">; // For connected repositories
+  repositoryUrl?: string; // For one-off analyses
+  repositoryOwner: string;
+  repositoryName: string;
+  branch: string;
   rubricId: Id<"rubrics">;
   triggerRunId?: string;
   status: AnalysisStatus;
@@ -363,6 +412,7 @@ export default defineSchema({
       requireJustification: v.optional(v.boolean()),
       minValue: v.optional(v.number()),
       maxValue: v.optional(v.number()),
+      rangeGuidance: v.optional(v.string()), // Required for range type: describes when each score level should be selected
       maxExamples: v.optional(v.number()),
     }),
     order: v.number(),
@@ -381,7 +431,11 @@ export default defineSchema({
 
   analyses: defineTable({
     userId: v.id("users"),
-    repositoryId: v.id("repositories"),
+    repositoryId: v.optional(v.id("repositories")), // For connected repositories
+    repositoryUrl: v.optional(v.string()), // For one-off analyses
+    repositoryOwner: v.string(),
+    repositoryName: v.string(),
+    branch: v.string(),
     rubricId: v.id("rubrics"),
     triggerRunId: v.optional(v.string()),
     status: v.union(
@@ -447,6 +501,10 @@ Based on the acceptance criteria analysis, the following correctness properties 
 - code_examples: contains array of examples, each with `filePath`, `lineStart`, `lineEnd`, `code`, and `explanation`
 **Validates: Requirements 2.3, 2.4, 2.5, 2.6, 7.1, 7.2, 7.3, 7.4**
 
+### Property 4.1: Range item requires guidance text
+*For any* rubric item with evaluation type "range", the item SHALL only be stored if it contains a non-empty `rangeGuidance` string describing when each score level should be selected.
+**Validates: Requirements 2.4**
+
 ### Property 5: Rubric update persistence
 *For any* rubric update operation with valid data, retrieving the rubric immediately after SHALL return the updated values.
 **Validates: Requirements 2.7**
@@ -507,6 +565,30 @@ Based on the acceptance criteria analysis, the following correctness properties 
 *For any* filtered analysis history query, all returned analyses SHALL match all specified filter criteria (repository, rubric, date range, status).
 **Validates: Requirements 8.3**
 
+### Property 20: GitHub URL parsing correctness
+*For any* valid GitHub repository URL (https://github.com/owner/repo, with optional /tree/branch suffix, or git@ format), parsing SHALL extract the correct owner, repository name, and branch (if specified).
+**Validates: Requirements 9.1**
+
+### Property 21: GitHub URL parsing round-trip
+*For any* parsed GitHub URL components (owner, repo, branch), reconstructing a URL and re-parsing SHALL produce the same components.
+**Validates: Requirements 9.1**
+
+### Property 22: One-off analysis storage structure
+*For any* one-off analysis creation, the stored analysis record SHALL have repositoryUrl set to the input URL, repositoryId set to undefined/null, and repositoryOwner/repositoryName correctly populated from the parsed URL.
+**Validates: Requirements 9.3**
+
+### Property 23: Branch default behavior
+*For any* GitHub URL without an explicit branch specification, the parsed result SHALL have branch as undefined, signaling the system to use the repository's default branch.
+**Validates: Requirements 9.5**
+
+### Property 24: Invalid URL error handling
+*For any* invalid GitHub URL (malformed, non-GitHub domain, missing owner/repo), parsing SHALL return a failure result with an appropriate error message.
+**Validates: Requirements 9.6**
+
+### Property 25: One-off analysis history identification
+*For any* analysis in history, the analysis SHALL be identifiable as one-off (repositoryUrl present, repositoryId absent) or connected (repositoryId present), and one-off analyses SHALL display the repository URL.
+**Validates: Requirements 9.7**
+
 ## Error Handling
 
 ### Authentication Errors
@@ -523,6 +605,13 @@ Based on the acceptance criteria analysis, the following correctness properties 
 - **GitHub MCP connection failure**: Display connection error with troubleshooting steps
 - **Repository not found**: Remove from user's list, notify user
 - **Access revoked**: Mark repository as inaccessible, fail pending analyses gracefully
+
+### One-Off Analysis Errors
+- **Invalid URL format**: Display specific error indicating URL format requirements
+- **Non-GitHub URL**: Display error that only GitHub repositories are supported
+- **Private repository**: Display error that repository is not publicly accessible
+- **Repository not found**: Display error that repository does not exist or URL is incorrect
+- **Branch not found**: Display error that specified branch does not exist, suggest using default branch
 
 ### Analysis Errors
 - **Task timeout**: Mark item as failed, continue with remaining items
@@ -557,6 +646,12 @@ Each correctness property will be implemented as a property-based test using fas
 
 Property tests will be tagged with format: `**Feature: ai-code-review, Property {number}: {property_text}**`
 
+**One-Off Analysis Property Tests:**
+- Generate random valid GitHub URLs in various formats
+- Generate random owner/repo/branch combinations
+- Generate invalid URLs (malformed, non-GitHub, missing components)
+- Test URL parsing, round-trip consistency, and error handling
+
 ### Integration Tests
 Integration tests will cover:
 - Clerk-Convex authentication flow
@@ -570,11 +665,13 @@ __tests__/
 ├── unit/
 │   ├── rubric.test.ts
 │   ├── analysis.test.ts
-│   └── export.test.ts
+│   ├── export.test.ts
+│   └── github-url.test.ts
 ├── properties/
 │   ├── rubric.properties.test.ts
 │   ├── analysis.properties.test.ts
-│   └── results.properties.test.ts
+│   ├── results.properties.test.ts
+│   └── github-url.properties.test.ts
 └── integration/
     ├── auth.integration.test.ts
     ├── trigger.integration.test.ts
