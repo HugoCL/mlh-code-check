@@ -663,3 +663,217 @@ describe("Property 19: Filter correctness", () => {
 		);
 	});
 });
+
+
+// Arbitrary for generating valid GitHub owner/repo names
+const gitHubNameArbitrary = fc
+	.stringMatching(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,38}[a-zA-Z0-9]$/)
+	.filter((s) => s.length >= 2 && s.length <= 39);
+
+// Arbitrary for generating valid branch names
+const branchArbitrary = fc
+	.stringMatching(/^[a-zA-Z0-9][a-zA-Z0-9_/-]{0,48}[a-zA-Z0-9]$/)
+	.filter((s) => s.length >= 2 && !s.includes("//"));
+
+/**
+ * **Feature: ai-code-review, Property 25: One-off analysis history identification**
+ * *For any* analysis in history, the analysis SHALL be identifiable as one-off
+ * (repositoryUrl present, repositoryId absent) or connected (repositoryId present),
+ * and one-off analyses SHALL display the repository URL.
+ * **Validates: Requirements 9.7**
+ */
+describe("Property 25: One-off analysis history identification", () => {
+	it("should correctly identify one-off vs connected analyses in history", async () => {
+		await fc.assert(
+			fc.asyncProperty(
+				userDataArbitrary,
+				repositoryDataArbitrary,
+				rubricDataArbitrary,
+				fc.array(rubricItemArbitrary, { minLength: 1, maxLength: 2 }),
+				gitHubNameArbitrary,
+				gitHubNameArbitrary,
+				branchArbitrary,
+				async (
+					userData,
+					repoData,
+					rubricData,
+					rubricItems,
+					oneOffOwner,
+					oneOffRepoName,
+					oneOffBranch,
+				) => {
+					const t = convexTest(schema, modules);
+
+					// Create user
+					await t.mutation(api.users.syncUser, userData);
+
+					// Create connected repository
+					const repositoryId = await t
+						.withIdentity({ subject: userData.clerkId })
+						.mutation(api.repositories.connectRepository, {
+							owner: repoData.owner,
+							name: repoData.name,
+							fullName: `${repoData.owner}/${repoData.name}`,
+							defaultBranch: repoData.defaultBranch,
+						});
+
+					// Create rubric
+					const rubricId = await t
+						.withIdentity({ subject: userData.clerkId })
+						.mutation(api.rubrics.createRubric, {
+							name: rubricData.name,
+							description: rubricData.description,
+						});
+
+					// Add rubric items
+					for (const item of rubricItems) {
+						await t
+							.withIdentity({ subject: userData.clerkId })
+							.mutation(api.rubrics.addRubricItem, {
+								rubricId,
+								name: item.name,
+								description: item.description,
+								evaluationType: item.evaluationType,
+								config: item.config,
+								order: item.order,
+							});
+					}
+
+					// Create connected repository analysis
+					await t
+						.withIdentity({ subject: userData.clerkId })
+						.mutation(api.analyses.createAnalysis, {
+							repositoryId,
+							rubricId,
+						});
+
+					// Create one-off analysis
+					const oneOffUrl = `https://github.com/${oneOffOwner}/${oneOffRepoName}`;
+					await t
+						.withIdentity({ subject: userData.clerkId })
+						.mutation(api.analyses.createOneOffAnalysis, {
+							repositoryUrl: oneOffUrl,
+							repositoryOwner: oneOffOwner,
+							repositoryName: oneOffRepoName,
+							branch: oneOffBranch,
+							rubricId,
+						});
+
+					// Get all analyses from history
+					const history = await t
+						.withIdentity({ subject: userData.clerkId })
+						.query(api.analyses.listAnalyses, { limit: 10 });
+
+					// Property: Should have both analyses
+					expect(history.length).toBe(2);
+
+					// Find connected and one-off analyses
+					const connectedAnalysis = history.find((a) => a.repositoryId);
+					const oneOffAnalysis = history.find((a) => !a.repositoryId);
+
+					// Property: Connected analysis should have repositoryId and no repositoryUrl
+					expect(connectedAnalysis).toBeDefined();
+					expect(connectedAnalysis!.repositoryId).toBe(repositoryId);
+					expect(connectedAnalysis!.repositoryUrl).toBeUndefined();
+					expect(connectedAnalysis!.repository).not.toBeNull();
+
+					// Property: One-off analysis should have repositoryUrl and no repositoryId
+					expect(oneOffAnalysis).toBeDefined();
+					expect(oneOffAnalysis!.repositoryId).toBeUndefined();
+					expect(oneOffAnalysis!.repositoryUrl).toBe(oneOffUrl);
+					expect(oneOffAnalysis!.repositoryOwner).toBe(oneOffOwner);
+					expect(oneOffAnalysis!.repositoryName).toBe(oneOffRepoName);
+					expect(oneOffAnalysis!.repository).toBeNull();
+				},
+			),
+			{ numRuns: 100 },
+		);
+	});
+
+	it("should include one-off analyses when no repository filter is applied", async () => {
+		await fc.assert(
+			fc.asyncProperty(
+				userDataArbitrary,
+				rubricDataArbitrary,
+				fc.array(rubricItemArbitrary, { minLength: 1, maxLength: 2 }),
+				gitHubNameArbitrary,
+				gitHubNameArbitrary,
+				branchArbitrary,
+				async (
+					userData,
+					rubricData,
+					rubricItems,
+					oneOffOwner,
+					oneOffRepoName,
+					oneOffBranch,
+				) => {
+					const t = convexTest(schema, modules);
+
+					// Create user
+					await t.mutation(api.users.syncUser, userData);
+
+					// Create rubric
+					const rubricId = await t
+						.withIdentity({ subject: userData.clerkId })
+						.mutation(api.rubrics.createRubric, {
+							name: rubricData.name,
+							description: rubricData.description,
+						});
+
+					// Add rubric items
+					for (const item of rubricItems) {
+						await t
+							.withIdentity({ subject: userData.clerkId })
+							.mutation(api.rubrics.addRubricItem, {
+								rubricId,
+								name: item.name,
+								description: item.description,
+								evaluationType: item.evaluationType,
+								config: item.config,
+								order: item.order,
+							});
+					}
+
+					// Create multiple one-off analyses
+					const oneOffUrl1 = `https://github.com/${oneOffOwner}/${oneOffRepoName}`;
+					await t
+						.withIdentity({ subject: userData.clerkId })
+						.mutation(api.analyses.createOneOffAnalysis, {
+							repositoryUrl: oneOffUrl1,
+							repositoryOwner: oneOffOwner,
+							repositoryName: oneOffRepoName,
+							branch: oneOffBranch,
+							rubricId,
+						});
+
+					const oneOffUrl2 = `https://github.com/${oneOffOwner}2/${oneOffRepoName}2`;
+					await t
+						.withIdentity({ subject: userData.clerkId })
+						.mutation(api.analyses.createOneOffAnalysis, {
+							repositoryUrl: oneOffUrl2,
+							repositoryOwner: `${oneOffOwner}2`,
+							repositoryName: `${oneOffRepoName}2`,
+							branch: oneOffBranch,
+							rubricId,
+						});
+
+					// Get all analyses from history (no repository filter)
+					const history = await t
+						.withIdentity({ subject: userData.clerkId })
+						.query(api.analyses.listAnalyses, { limit: 10 });
+
+					// Property: All one-off analyses should be included
+					expect(history.length).toBe(2);
+
+					// All should be one-off (no repositoryId)
+					for (const analysis of history) {
+						expect(analysis.repositoryId).toBeUndefined();
+						expect(analysis.repositoryUrl).toBeDefined();
+						expect(analysis.repository).toBeNull();
+					}
+				},
+			),
+			{ numRuns: 100 },
+		);
+	});
+});
