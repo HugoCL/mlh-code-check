@@ -28,6 +28,9 @@ interface AnalysisCardProps {
 		failedItems: number;
 		createdAt: number;
 		completedAt?: number;
+		repositoryUrl?: string; // For one-off analyses
+		repositoryOwner?: string;
+		repositoryName?: string;
 		repository?: {
 			fullName: string;
 		} | null;
@@ -70,6 +73,14 @@ export function AnalysisCard({ analysis, onClick }: AnalysisCardProps) {
 		});
 	};
 
+	// Determine repository display name
+	const isOneOff = !analysis.repository && analysis.repositoryUrl;
+	const repositoryDisplayName = analysis.repository?.fullName
+		? analysis.repository.fullName
+		: analysis.repositoryOwner && analysis.repositoryName
+			? `${analysis.repositoryOwner}/${analysis.repositoryName}`
+			: "Unknown Repository";
+
 	return (
 		<Card
 			size="sm"
@@ -82,7 +93,12 @@ export function AnalysisCard({ analysis, onClick }: AnalysisCardProps) {
 		>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					{analysis.repository?.fullName || "Unknown Repository"}
+					{repositoryDisplayName}
+					{isOneOff && (
+						<Badge variant="outline" className="text-xs">
+							One-off
+						</Badge>
+					)}
 				</CardTitle>
 				<Badge variant={config.variant} className="w-fit">
 					<HugeiconsIcon icon={StatusIcon} data-icon="inline-start" />

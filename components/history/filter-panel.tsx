@@ -6,7 +6,7 @@ import {
 	RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,11 @@ interface FilterPanelProps {
 }
 
 export function FilterPanel({ filters, onFiltersChange }: FilterPanelProps) {
-	const repositories = useQuery(api.repositories.listRepositories);
+	const { isAuthenticated } = useConvexAuth();
+	const repositories = useQuery(
+		api.repositories.listRepositories,
+		isAuthenticated ? {} : "skip",
+	);
 	const rubrics = useQuery(api.rubrics.listRubrics, "skip");
 
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {

@@ -2,7 +2,7 @@
 
 import { AnalyticsUpIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useState } from "react";
 import {
 	Empty,
@@ -32,17 +32,27 @@ export function AnalysisHistory({
 	showFilters = true,
 }: AnalysisHistoryProps) {
 	const [filters, setFilters] = useState<FilterValues>({});
+	const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
 
-	const analyses = useQuery(api.analyses.listAnalyses, {
-		limit,
-		repositoryId: filters.repositoryId,
-		rubricId: filters.rubricId,
-		status: filters.status,
-		dateFrom: filters.dateFrom,
-		dateTo: filters.dateTo,
-	});
+	const analyses = useQuery(
+		api.analyses.listAnalyses,
+		isAuthenticated
+			? {
+					limit,
+					repositoryId: filters.repositoryId,
+					rubricId: filters.rubricId,
+					status: filters.status,
+					dateFrom: filters.dateFrom,
+					dateTo: filters.dateTo,
+				}
+			: "skip",
+	);
 
-	if (analyses === undefined) {
+	// Only show loading spinner when auth is done and data is actually loading
+	const isDataLoading =
+		!isAuthLoading && isAuthenticated && analyses === undefined;
+
+	if (isDataLoading) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Spinner className="size-8" />
@@ -57,7 +67,7 @@ export function AnalysisHistory({
 		filters.dateFrom ||
 		filters.dateTo;
 
-	if (analyses.length === 0 && !hasActiveFilters) {
+	if (!analyses || (analyses.length === 0 && !hasActiveFilters)) {
 		return (
 			<Empty>
 				<EmptyHeader>
