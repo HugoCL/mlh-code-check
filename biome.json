@@ -55,6 +55,10 @@
 		]
 	},
 	"javascript": { "formatter": { "quoteStyle": "double" }, "globals": [] },
+	"css": {
+		"parser": { "cssModules": true, "tailwindDirectives": true },
+		"linter": { "enabled": true }
+	},
 	"overrides": [
 		{
 			"includes": ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
