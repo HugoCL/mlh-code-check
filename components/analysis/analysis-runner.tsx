@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import {
+	AlertCircleIcon,
+	Cancel01Icon,
+	CheckmarkCircle02Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useRealtimeRun } from "@trigger.dev/react-hooks";
-import type { analyzeRepository } from "@/trigger/analyze";
-import { ProgressBar } from "./progress-bar";
-import { ItemStatusList, type ItemStatusInfo } from "./item-status-list";
+import { useCallback, useEffect, useState } from "react";
+import { startAnalysis, triggerAnalysisTask } from "@/app/actions/analysis";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -12,16 +18,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { Button } from "@/components/ui/button";
-import {
-	CheckmarkCircle02Icon,
-	Cancel01Icon,
-	AlertCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { startAnalysis, triggerAnalysisTask } from "@/app/actions/analysis";
+import type { analyzeRepository } from "@/trigger/analyze";
+import { type ItemStatusInfo, ItemStatusList } from "./item-status-list";
+import { ProgressBar } from "./progress-bar";
 
 interface AnalysisProgressMetadata {
 	status: "initializing" | "fetching_repo" | "evaluating" | "completing";
