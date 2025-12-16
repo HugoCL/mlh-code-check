@@ -2,13 +2,16 @@
 
 import {
 	AlertCircleIcon,
-	Cancel01Icon,
 	CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useRealtimeRun } from "@trigger.dev/react-hooks";
 import { useCallback, useEffect, useState } from "react";
-import { startAnalysis, triggerAnalysisTask } from "@/app/actions/analysis";
+import {
+	getAccessTokenForAnalysis,
+	startAnalysis,
+	triggerAnalysisTask,
+} from "@/app/actions/analysis";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +40,9 @@ interface RubricItem {
 	name: string;
 }
 
-interface AnalysisRunnerProps {
+// Props for connected repository analysis
+interface ConnectedAnalysisProps {
+	analysisId: string;
 	repositoryId: string;
 	rubricId: string;
 	userId: string;
@@ -45,6 +50,23 @@ interface AnalysisRunnerProps {
 	onComplete?: (analysisId: string) => void;
 	onError?: (error: string) => void;
 }
+
+// Props for one-off analysis (no repositoryId, but has URL info)
+interface OneOffAnalysisProps {
+	analysisId: string;
+	repositoryId?: undefined;
+	repositoryUrl: string;
+	repositoryOwner: string;
+	repositoryName: string;
+	branch: string;
+	rubricId: string;
+	userId: string;
+	rubricItems?: RubricItem[];
+	onComplete?: (analysisId: string) => void;
+	onError?: (error: string) => void;
+}
+
+type AnalysisRunnerProps = ConnectedAnalysisProps | OneOffAnalysisProps;
 
 const statusLabels: Record<AnalysisProgressMetadata["status"], string> = {
 	initializing: "Initializing analysis...",
@@ -65,38 +87,73 @@ type AnalysisState =
 	| { status: "completed"; analysisId: string }
 	| { status: "failed"; error: string };
 
-export function AnalysisRunner({
-	repositoryId,
-	rubricId,
-	userId,
-	rubricItems = [],
-	onComplete,
-	onError,
-}: AnalysisRunnerProps) {
+// Type guard to check if props are for one-off analysis
+function isOneOffAnalysis(
+	props: AnalysisRunnerProps,
+): props is OneOffAnalysisProps {
+	return props.repositoryId === undefined && "repositoryUrl" in props;
+}
+
+export function AnalysisRunner(props: AnalysisRunnerProps) {
+	const {
+		analysisId,
+		rubricId,
+		userId,
+		rubricItems = [],
+		onComplete,
+		onError,
+	} = props;
 	const [state, setState] = useState<AnalysisState>({ status: "idle" });
 
 	const handleStartAnalysis = useCallback(async () => {
 		setState({ status: "starting" });
 
 		try {
-			// Step 1: Create analysis record and get access token
-			const result = await startAnalysis(repositoryId, rubricId);
+			let tokenResult: {
+				success: boolean;
+				analysisId?: string;
+				accessToken?: string;
+				error?: string;
+			};
 
-			if (!result.success || !result.analysisId || !result.accessToken) {
+			if (isOneOffAnalysis(props)) {
+				// For one-off analyses, the analysis record already exists
+				// Just get an access token
+				tokenResult = await getAccessTokenForAnalysis(analysisId);
+			} else {
+				// For connected repository analyses, create the analysis record
+				tokenResult = await startAnalysis(props.repositoryId, rubricId);
+			}
+
+			if (!tokenResult.success || !tokenResult.accessToken) {
 				setState({
 					status: "failed",
-					error: result.error ?? "Failed to start analysis",
+					error: tokenResult.error ?? "Failed to start analysis",
 				});
-				onError?.(result.error ?? "Failed to start analysis");
+				onError?.(tokenResult.error ?? "Failed to start analysis");
 				return;
 			}
 
-			// Step 2: Trigger the analysis task
+			const effectiveAnalysisId = tokenResult.analysisId ?? analysisId;
+
+			// Trigger the analysis task with appropriate payload
 			const triggerResult = await triggerAnalysisTask(
-				result.analysisId,
-				repositoryId,
-				rubricId,
-				userId,
+				isOneOffAnalysis(props)
+					? {
+							analysisId: effectiveAnalysisId,
+							rubricId,
+							userId,
+							repositoryUrl: props.repositoryUrl,
+							repositoryOwner: props.repositoryOwner,
+							repositoryName: props.repositoryName,
+							branch: props.branch,
+						}
+					: {
+							analysisId: effectiveAnalysisId,
+							repositoryId: props.repositoryId,
+							rubricId,
+							userId,
+						},
 			);
 
 			if (!triggerResult.success || !triggerResult.runId) {
@@ -108,12 +165,12 @@ export function AnalysisRunner({
 				return;
 			}
 
-			// Step 3: Set running state with run ID for subscription
+			// Set running state with run ID for subscription
 			setState({
 				status: "running",
-				analysisId: result.analysisId,
+				analysisId: effectiveAnalysisId,
 				runId: triggerResult.runId,
-				accessToken: result.accessToken,
+				accessToken: tokenResult.accessToken,
 			});
 		} catch (error) {
 			const errorMessage =
@@ -121,7 +178,7 @@ export function AnalysisRunner({
 			setState({ status: "failed", error: errorMessage });
 			onError?.(errorMessage);
 		}
-	}, [repositoryId, rubricId, userId, onError]);
+	}, [props, analysisId, rubricId, userId, onError]);
 
 	if (state.status === "idle") {
 		return (
