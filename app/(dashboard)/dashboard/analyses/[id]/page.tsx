@@ -2,7 +2,7 @@
 
 import { ArrowLeft01Icon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -17,10 +17,12 @@ export default function AnalysisResultsPage() {
 	const params = useParams();
 	const router = useRouter();
 	const analysisId = params.id as string;
+	const { isAuthenticated } = useConvexAuth();
 
-	const analysis = useQuery(api.analyses.getAnalysisWithResults, {
-		analysisId: analysisId as Id<"analyses">,
-	});
+	const analysis = useQuery(
+		api.analyses.getAnalysisWithResults,
+		isAuthenticated ? { analysisId: analysisId as Id<"analyses"> } : "skip",
+	);
 
 	// Redirect to progress page if analysis is still running
 	useEffect(() => {
@@ -61,6 +63,12 @@ export default function AnalysisResultsPage() {
 
 	// Show loading state for pending/running analyses
 	if (analysis.status === "pending" || analysis.status === "running") {
+		const inProgressRepoName =
+			analysis.repository?.fullName ??
+			(analysis.repositoryOwner && analysis.repositoryName
+				? `${analysis.repositoryOwner}/${analysis.repositoryName}`
+				: "Unknown Repository");
+
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center gap-4">
@@ -73,9 +81,7 @@ export default function AnalysisResultsPage() {
 					</Button>
 					<div className="flex-1">
 						<h1 className="text-2xl font-bold">Analysis in Progress</h1>
-						<p className="text-muted-foreground">
-							{analysis.repository?.fullName ?? "Unknown Repository"}
-						</p>
+						<p className="text-muted-foreground">{inProgressRepoName}</p>
 					</div>
 					<Badge variant="secondary">
 						<HugeiconsIcon
@@ -128,6 +134,13 @@ export default function AnalysisResultsPage() {
 		})),
 	};
 
+	// Get repository display name - use linked repository or fall back to stored owner/name
+	const repositoryDisplayName =
+		analysis.repository?.fullName ??
+		(analysis.repositoryOwner && analysis.repositoryName
+			? `${analysis.repositoryOwner}/${analysis.repositoryName}`
+			: "Unknown Repository");
+
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center gap-4">
@@ -141,7 +154,7 @@ export default function AnalysisResultsPage() {
 				<div>
 					<h1 className="text-2xl font-bold">Analysis Results</h1>
 					<p className="text-muted-foreground">
-						{analysis.repository?.fullName ?? "Unknown Repository"} •{" "}
+						{repositoryDisplayName} •{" "}
 						{analysis.rubric?.name ?? "Unknown Rubric"}
 					</p>
 				</div>

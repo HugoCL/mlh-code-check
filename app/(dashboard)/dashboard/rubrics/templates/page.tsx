@@ -1,9 +1,15 @@
 "use client";
 
-import { Copy01Icon, FileEditIcon } from "@hugeicons/core-free-icons";
+import {
+	Cancel01Icon,
+	Copy01Icon,
+	FileEditIcon,
+	ViewIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +20,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	Empty,
 	EmptyDescription,
@@ -27,10 +41,16 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 export default function TemplatesPage() {
 	const router = useRouter();
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const { isAuthenticated } = useConvexAuth();
+	const [viewingTemplateId, setViewingTemplateId] =
+		useState<Id<"rubrics"> | null>(null);
+	const currentUser = useQuery(
+		api.users.getCurrentUser,
+		isAuthenticated ? {} : "skip",
+	);
 	const rubrics = useQuery(
 		api.rubrics.listRubrics,
-		currentUser ? { userId: currentUser._id } : "skip",
+		isAuthenticated && currentUser ? { userId: currentUser._id } : "skip",
 	);
 	const duplicateTemplate = useMutation(api.rubrics.duplicateSystemTemplate);
 
@@ -43,6 +63,10 @@ export default function TemplatesPage() {
 			systemTemplateId: templateId,
 		});
 		router.push(`/dashboard/rubrics/${newRubricId}`);
+	};
+
+	const handleView = (templateId: Id<"rubrics">) => {
+		setViewingTemplateId(templateId);
 	};
 
 	if (currentUser === undefined || rubrics === undefined) {
@@ -92,10 +116,17 @@ export default function TemplatesPage() {
 							key={template._id}
 							template={template}
 							onDuplicate={handleDuplicate}
+							onView={handleView}
 						/>
 					))}
 				</div>
 			)}
+
+			<TemplateViewDialog
+				templateId={viewingTemplateId}
+				onClose={() => setViewingTemplateId(null)}
+				onDuplicate={handleDuplicate}
+			/>
 		</div>
 	);
 }
@@ -107,23 +138,42 @@ interface TemplateCardProps {
 		description: string;
 	};
 	onDuplicate: (templateId: Id<"rubrics">) => void;
+	onView: (templateId: Id<"rubrics">) => void;
 }
 
-function TemplateCard({ template, onDuplicate }: TemplateCardProps) {
+function TemplateCard({ template, onDuplicate, onView }: TemplateCardProps) {
 	const rubric = useQuery(api.rubrics.getRubric, { rubricId: template._id });
 
 	return (
-		<Card size="sm">
+		<Card
+			size="sm"
+			className="cursor-pointer hover:border-primary/50 transition-colors"
+			onClick={() => onView(template._id)}
+		>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
 					{template.name}
 					<Badge variant="secondary">Template</Badge>
 				</CardTitle>
-				<CardAction>
+				<CardAction className="flex gap-1">
 					<Button
 						variant="ghost"
 						size="icon-sm"
-						onClick={() => onDuplicate(template._id)}
+						onClick={(e) => {
+							e.stopPropagation();
+							onView(template._id);
+						}}
+						title="View template"
+					>
+						<HugeiconsIcon icon={ViewIcon} />
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onClick={(e) => {
+							e.stopPropagation();
+							onDuplicate(template._id);
+						}}
 						title="Duplicate template"
 					>
 						<HugeiconsIcon icon={Copy01Icon} />
@@ -139,5 +189,118 @@ function TemplateCard({ template, onDuplicate }: TemplateCardProps) {
 				</div>
 			</CardContent>
 		</Card>
+	);
+}
+
+interface TemplateViewDialogProps {
+	templateId: Id<"rubrics"> | null;
+	onClose: () => void;
+	onDuplicate: (templateId: Id<"rubrics">) => void;
+}
+
+function TemplateViewDialog({
+	templateId,
+	onClose,
+	onDuplicate,
+}: TemplateViewDialogProps) {
+	const rubric = useQuery(
+		api.rubrics.getRubric,
+		templateId ? { rubricId: templateId } : "skip",
+	);
+
+	const handleDuplicate = () => {
+		if (templateId) {
+			onDuplicate(templateId);
+			onClose();
+		}
+	};
+
+	return (
+		<Dialog
+			open={templateId !== null}
+			onOpenChange={(open) => !open && onClose()}
+		>
+			<DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						{rubric?.name}
+						<Badge variant="secondary">Template</Badge>
+					</DialogTitle>
+					<DialogDescription>{rubric?.description}</DialogDescription>
+				</DialogHeader>
+
+				{rubric === undefined ? (
+					<div className="flex items-center justify-center py-8">
+						<Spinner className="size-6" />
+					</div>
+				) : rubric === null ? (
+					<div className="text-center py-8 text-muted-foreground">
+						Template not found
+					</div>
+				) : (
+					<div className="flex-1 overflow-y-auto space-y-4 pr-2">
+						<div className="text-sm text-muted-foreground">
+							{rubric.items?.length ?? 0} evaluation criteria
+						</div>
+
+						<div className="space-y-3">
+							{rubric.items?.map((item, index) => (
+								<div key={item._id} className="rounded-lg border p-4 space-y-2">
+									<div className="flex items-start justify-between gap-2">
+										<div className="flex items-center gap-2">
+											<span className="text-muted-foreground text-sm">
+												{index + 1}.
+											</span>
+											<span className="font-medium">{item.name}</span>
+										</div>
+										<Badge variant="outline" className="shrink-0">
+											{item.evaluationType.replace("_", "/")}
+										</Badge>
+									</div>
+									<p className="text-sm text-muted-foreground">
+										{item.description}
+									</p>
+									{item.evaluationType === "range" && item.config && (
+										<div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+											<span className="font-medium">Range:</span>{" "}
+											{item.config.minValue ?? 0} - {item.config.maxValue ?? 10}
+											{item.config.rangeGuidance && (
+												<div className="mt-1 whitespace-pre-line">
+													<span className="font-medium">Guidance:</span>{" "}
+													{item.config.rangeGuidance}
+												</div>
+											)}
+										</div>
+									)}
+									{item.evaluationType === "yes_no" &&
+										item.config?.requireJustification && (
+											<div className="text-xs text-muted-foreground">
+												Requires justification
+											</div>
+										)}
+									{item.evaluationType === "code_examples" &&
+										item.config?.maxExamples && (
+											<div className="text-xs text-muted-foreground">
+												Max examples: {item.config.maxExamples}
+											</div>
+										)}
+								</div>
+							))}
+						</div>
+					</div>
+				)}
+
+				<div className="flex justify-end gap-2 pt-4 border-t">
+					<DialogClose render={<Button variant="outline" />}>
+						<HugeiconsIcon icon={Cancel01Icon} data-icon="inline-start" />
+						Close
+					</DialogClose>
+					<Button onClick={handleDuplicate}>
+						<HugeiconsIcon icon={Copy01Icon} data-icon="inline-start" />
+						Duplicate & Customize
+					</Button>
+				</div>
+			</DialogContent>
+		</Dialog>
 	);
 }

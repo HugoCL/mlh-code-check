@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useParams, useRouter } from "next/navigation";
 import { RubricForm } from "@/components/rubrics/rubric-form";
 import { Spinner } from "@/components/ui/spinner";
@@ -11,7 +11,11 @@ export default function EditRubricPage() {
 	const params = useParams();
 	const router = useRouter();
 	const rubricId = params.id as string;
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const { isAuthenticated } = useConvexAuth();
+	const currentUser = useQuery(
+		api.users.getCurrentUser,
+		isAuthenticated ? {} : "skip",
+	);
 
 	const handleBack = () => {
 		router.push("/dashboard/rubrics");

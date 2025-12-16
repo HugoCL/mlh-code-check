@@ -2,7 +2,7 @@
 
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -16,14 +16,19 @@ export default function AnalysisProgressPage() {
 	const params = useParams();
 	const router = useRouter();
 	const analysisId = params.id as string;
+	const { isAuthenticated } = useConvexAuth();
 
-	const analysis = useQuery(api.analyses.getAnalysis, {
-		analysisId: analysisId as Id<"analyses">,
-	});
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const analysis = useQuery(
+		api.analyses.getAnalysis,
+		isAuthenticated ? { analysisId: analysisId as Id<"analyses"> } : "skip",
+	);
+	const currentUser = useQuery(
+		api.users.getCurrentUser,
+		isAuthenticated ? {} : "skip",
+	);
 	const rubric = useQuery(
 		api.rubrics.getRubric,
-		analysis ? { rubricId: analysis.rubricId } : "skip",
+		isAuthenticated && analysis ? { rubricId: analysis.rubricId } : "skip",
 	);
 
 	// Redirect to results if analysis is already completed
@@ -81,6 +86,16 @@ export default function AnalysisProgressPage() {
 			name: item.name,
 		})) ?? [];
 
+	// Determine if this is a one-off analysis (no repositoryId)
+	const isOneOff = !analysis.repositoryId;
+
+	// Get display name for repository
+	const repositoryDisplayName =
+		analysis.repository?.fullName ??
+		(analysis.repositoryOwner && analysis.repositoryName
+			? `${analysis.repositoryOwner}/${analysis.repositoryName}`
+			: "Unknown Repository");
+
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center gap-4">
@@ -94,7 +109,7 @@ export default function AnalysisProgressPage() {
 				<div className="flex-1">
 					<h1 className="text-2xl font-bold">Analysis Progress</h1>
 					<p className="text-muted-foreground">
-						{analysis.repository?.fullName ?? "Unknown Repository"} •{" "}
+						{repositoryDisplayName} •{" "}
 						{analysis.rubric?.name ?? "Unknown Rubric"}
 					</p>
 				</div>
@@ -106,14 +121,30 @@ export default function AnalysisProgressPage() {
 				)}
 			</div>
 
-			<AnalysisRunner
-				repositoryId={analysis.repositoryId}
-				rubricId={analysis.rubricId}
-				userId={currentUser._id}
-				rubricItems={rubricItems}
-				onComplete={handleComplete}
-				onError={handleError}
-			/>
+			{isOneOff ? (
+				<AnalysisRunner
+					analysisId={analysisId}
+					repositoryUrl={analysis.repositoryUrl ?? ""}
+					repositoryOwner={analysis.repositoryOwner ?? ""}
+					repositoryName={analysis.repositoryName ?? ""}
+					branch={analysis.branch ?? "main"}
+					rubricId={analysis.rubricId}
+					userId={currentUser._id}
+					rubricItems={rubricItems}
+					onComplete={handleComplete}
+					onError={handleError}
+				/>
+			) : (
+				<AnalysisRunner
+					analysisId={analysisId}
+					repositoryId={analysis.repositoryId!}
+					rubricId={analysis.rubricId}
+					userId={currentUser._id}
+					rubricItems={rubricItems}
+					onComplete={handleComplete}
+					onError={handleError}
+				/>
+			)}
 		</div>
 	);
 }

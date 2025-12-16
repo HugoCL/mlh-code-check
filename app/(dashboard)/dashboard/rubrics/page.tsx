@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { RubricList } from "@/components/rubrics/rubric-list";
 import { Spinner } from "@/components/ui/spinner";
@@ -9,7 +9,11 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 export default function RubricsPage() {
 	const router = useRouter();
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+	const currentUser = useQuery(
+		api.users.getCurrentUser,
+		isAuthenticated ? {} : "skip",
+	);
 	const deleteRubric = useMutation(api.rubrics.deleteRubric);
 	const duplicateTemplate = useMutation(api.rubrics.duplicateSystemTemplate);
 
@@ -36,7 +40,11 @@ export default function RubricsPage() {
 		router.push(`/dashboard/rubrics/${newRubricId}`);
 	};
 
-	if (currentUser === undefined) {
+	// Only show loading spinner when auth is done and user data is actually loading
+	const isDataLoading =
+		!isAuthLoading && isAuthenticated && currentUser === undefined;
+
+	if (isDataLoading) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Spinner className="size-8" />
@@ -44,7 +52,7 @@ export default function RubricsPage() {
 		);
 	}
 
-	if (currentUser === null) {
+	if (!currentUser) {
 		return (
 			<div className="text-center py-12">
 				<p className="text-muted-foreground">Please sign in to view rubrics.</p>

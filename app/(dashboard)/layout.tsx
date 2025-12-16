@@ -4,6 +4,7 @@ import { SignedIn, UserButton } from "@clerk/nextjs";
 import {
 	Add01Icon,
 	AnalyticsUpIcon,
+	InvestigationIcon,
 	FileEditIcon,
 	GitBranchIcon,
 	Home01Icon,
@@ -12,7 +13,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { useSyncUser } from "@/hooks/use-sync-user";
 import {
 	Sidebar,
 	SidebarContent,
@@ -59,15 +60,18 @@ export default function DashboardLayout({
 }) {
 	const pathname = usePathname();
 
+	// Sync Clerk user to Convex on first load
+	useSyncUser();
+
 	return (
 		<SidebarProvider>
 			<Sidebar>
 				<SidebarHeader className="border-b border-sidebar-border">
 					<div className="flex items-center gap-2 px-2 py-2">
 						<div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-							<HugeiconsIcon icon={AnalyticsUpIcon} className="size-4" />
+							<HugeiconsIcon icon={InvestigationIcon} className="size-4" />
 						</div>
-						<span className="font-semibold">AI Code Review</span>
+						<span className="font-semibold">MLH Code Inspector</span>
 					</div>
 				</SidebarHeader>
 				<SidebarContent>
@@ -115,10 +119,8 @@ export default function DashboardLayout({
 				</SidebarFooter>
 			</Sidebar>
 			<SidebarInset>
-				<header className="flex h-14 items-center gap-4 border-b px-6">
+				<header className="flex h-16 shrink-0 items-center justify-between border-b px-2">
 					<SidebarTrigger />
-					<Separator orientation="vertical" className="h-6" />
-					<div className="flex-1" />
 					<Button
 						variant="default"
 						size="sm"

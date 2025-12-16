@@ -2,10 +2,11 @@
 
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { OneOffAnalysisForm } from "@/components/repositories/one-off-analysis-form";
 import { RepositorySelector } from "@/components/repositories/repository-selector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -25,34 +25,73 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { ParsedGitHubUrl } from "@/lib/github-url";
+
+// One-off analysis data type
+interface OneOffData extends ParsedGitHubUrl {
+	url: string;
+}
 
 export default function NewAnalysisPage() {
 	const router = useRouter();
+	const [analysisMode, setAnalysisMode] = useState<"connected" | "one-off">(
+		"connected",
+	);
 	const [selectedRepository, setSelectedRepository] = useState<string | null>(
 		null,
 	);
+	const [oneOffData, setOneOffData] = useState<OneOffData | null>(null);
 	const [selectedRubric, setSelectedRubric] = useState<string | null>(null);
 	const [isStarting, setIsStarting] = useState(false);
+	const { isAuthenticated } = useConvexAuth();
 
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const currentUser = useQuery(
+		api.users.getCurrentUser,
+		isAuthenticated ? {} : "skip",
+	);
 	const rubrics = useQuery(
 		api.rubrics.listRubrics,
-		currentUser ? { userId: currentUser._id } : "skip",
+		isAuthenticated && currentUser ? { userId: currentUser._id } : "skip",
 	);
 
 	const createAnalysis = useMutation(api.analyses.createAnalysis);
+	const createOneOffAnalysis = useMutation(api.analyses.createOneOffAnalysis);
+
+	const handleValidUrl = useCallback((data: OneOffData) => {
+		setOneOffData(data);
+	}, []);
+
+	const handleInvalidUrl = useCallback(() => {
+		setOneOffData(null);
+	}, []);
 
 	const handleStartAnalysis = async () => {
-		if (!selectedRepository || !selectedRubric) return;
+		if (!selectedRubric) return;
 
 		setIsStarting(true);
 		try {
-			const analysisId = await createAnalysis({
-				repositoryId: selectedRepository as Id<"repositories">,
-				rubricId: selectedRubric as Id<"rubrics">,
-			});
+			let analysisId: Id<"analyses">;
+
+			if (analysisMode === "connected") {
+				if (!selectedRepository) return;
+				analysisId = await createAnalysis({
+					repositoryId: selectedRepository as Id<"repositories">,
+					rubricId: selectedRubric as Id<"rubrics">,
+				});
+			} else {
+				if (!oneOffData) return;
+				analysisId = await createOneOffAnalysis({
+					repositoryUrl: oneOffData.url,
+					repositoryOwner: oneOffData.owner,
+					repositoryName: oneOffData.repo,
+					branch: oneOffData.branch || "main",
+					rubricId: selectedRubric as Id<"rubrics">,
+				});
+			}
+
 			router.push(`/dashboard/analyses/${analysisId}/progress`);
 		} catch (error) {
 			console.error("Failed to start analysis:", error);
@@ -60,7 +99,14 @@ export default function NewAnalysisPage() {
 		}
 	};
 
-	const canStart = selectedRepository && selectedRubric && !isStarting;
+	const canStartConnected =
+		analysisMode === "connected" &&
+		selectedRepository &&
+		selectedRubric &&
+		!isStarting;
+	const canStartOneOff =
+		analysisMode === "one-off" && oneOffData && selectedRubric && !isStarting;
+	const canStart = canStartConnected || canStartOneOff;
 
 	return (
 		<div className="space-y-6">
@@ -86,14 +132,34 @@ export default function NewAnalysisPage() {
 					<CardHeader>
 						<CardTitle>1. Select Repository</CardTitle>
 						<CardDescription>
-							Choose the GitHub repository you want to analyze.
+							Choose a connected repository or analyze a public repository by
+							URL.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<RepositorySelector
-							value={selectedRepository ?? undefined}
-							onValueChange={setSelectedRepository}
-						/>
+						<Tabs
+							value={analysisMode}
+							onValueChange={(v) =>
+								setAnalysisMode(v as "connected" | "one-off")
+							}
+						>
+							<TabsList className="grid w-full grid-cols-2">
+								<TabsTrigger value="connected">Connected Repos</TabsTrigger>
+								<TabsTrigger value="one-off">Public URL</TabsTrigger>
+							</TabsList>
+							<TabsContent value="connected" className="mt-4">
+								<RepositorySelector
+									value={selectedRepository ?? undefined}
+									onValueChange={setSelectedRepository}
+								/>
+							</TabsContent>
+							<TabsContent value="one-off" className="mt-4">
+								<OneOffAnalysisForm
+									onValidUrl={handleValidUrl}
+									onInvalidUrl={handleInvalidUrl}
+								/>
+							</TabsContent>
+						</Tabs>
 					</CardContent>
 				</Card>
 
@@ -130,7 +196,7 @@ export default function NewAnalysisPage() {
 										setSelectedRubric(value === "none" ? null : value)
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger className="w-full">
 										<SelectValue>
 											{selectedRubric
 												? (rubrics.find((r) => r._id === selectedRubric)
@@ -138,13 +204,16 @@ export default function NewAnalysisPage() {
 												: "Select a rubric"}
 										</SelectValue>
 									</SelectTrigger>
-									<SelectContent>
+									<SelectContent className="w-(--radix-select-trigger-width) min-w-[300px]">
 										{rubrics.map((rubric) => (
 											<SelectItem key={rubric._id} value={rubric._id}>
 												<div className="flex items-center gap-2">
-													<span>{rubric.name}</span>
+													<span className="truncate">{rubric.name}</span>
 													{rubric.isSystemTemplate && (
-														<Badge variant="secondary" className="text-xs">
+														<Badge
+															variant="secondary"
+															className="text-xs shrink-0"
+														>
 															Template
 														</Badge>
 													)}

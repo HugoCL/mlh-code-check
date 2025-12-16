@@ -8,7 +8,7 @@ import {
 	GitBranchIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnalysisCard } from "@/components/history/analysis-card";
@@ -33,7 +33,15 @@ import { api } from "@/convex/_generated/api";
 
 export default function DashboardPage() {
 	const router = useRouter();
-	const analyses = useQuery(api.analyses.listAnalyses, { limit: 6 });
+	const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+	const analyses = useQuery(
+		api.analyses.listAnalyses,
+		isAuthenticated ? { limit: 6 } : "skip",
+	);
+
+	// Treat as "no data" when auth is still loading to avoid showing spinners
+	const isDataLoading =
+		!isAuthLoading && isAuthenticated && analyses === undefined;
 
 	const handleSelectAnalysis = (analysisId: string) => {
 		router.push(`/dashboard/analyses/${analysisId}`);
@@ -126,11 +134,11 @@ export default function DashboardPage() {
 					</Button>
 				</div>
 
-				{analyses === undefined ? (
+				{isDataLoading ? (
 					<div className="flex items-center justify-center py-12">
 						<Spinner className="size-8" />
 					</div>
-				) : analyses.length === 0 ? (
+				) : !analyses || analyses.length === 0 ? (
 					<Empty>
 						<EmptyHeader>
 							<EmptyMedia>
