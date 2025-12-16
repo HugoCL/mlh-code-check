@@ -8,7 +8,7 @@ import {
 	FileEditIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,9 +46,17 @@ export function RubricList({
 	onDelete,
 	onDuplicate,
 }: RubricListProps) {
-	const rubrics = useQuery(api.rubrics.listRubrics, { userId });
+	const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+	const rubrics = useQuery(
+		api.rubrics.listRubrics,
+		isAuthenticated ? { userId } : "skip",
+	);
 
-	if (rubrics === undefined) {
+	// Only show loading spinner when auth is done and data is actually loading
+	const isDataLoading =
+		!isAuthLoading && isAuthenticated && rubrics === undefined;
+
+	if (isDataLoading) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<Spinner className="size-8" />
@@ -56,7 +64,7 @@ export function RubricList({
 		);
 	}
 
-	if (rubrics.length === 0) {
+	if (!rubrics || rubrics.length === 0) {
 		return (
 			<Empty>
 				<EmptyHeader>

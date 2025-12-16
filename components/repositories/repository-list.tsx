@@ -6,7 +6,7 @@ import {
 	GitBranchIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,11 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 
 export function RepositoryList() {
-	const repositories = useQuery(api.repositories.listRepositories);
+	const { isAuthenticated } = useConvexAuth();
+	const repositories = useQuery(
+		api.repositories.listRepositories,
+		isAuthenticated ? {} : "skip",
+	);
 	const disconnectRepository = useMutation(
 		api.repositories.disconnectRepository,
 	);

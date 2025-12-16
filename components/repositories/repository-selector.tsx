@@ -2,7 +2,7 @@
 
 import { GitBranchIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,7 +29,11 @@ export function RepositorySelector({
 	placeholder = "Select a repository",
 	disabled = false,
 }: RepositorySelectorProps) {
-	const repositories = useQuery(api.repositories.listRepositories);
+	const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+	const repositories = useQuery(
+		api.repositories.listRepositories,
+		isAuthenticated ? {} : "skip",
+	);
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const filteredRepositories = repositories?.filter(
@@ -39,17 +43,21 @@ export function RepositorySelector({
 			repo.name.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
-	if (repositories === undefined) {
+	// Only show loading state when auth is done and data is actually loading
+	const isDataLoading =
+		!isAuthLoading && isAuthenticated && repositories === undefined;
+
+	if (isDataLoading) {
 		return (
 			<Select disabled>
 				<SelectTrigger>
-					<SelectValue />
+					<SelectValue>Loading repositories...</SelectValue>
 				</SelectTrigger>
 			</Select>
 		);
 	}
 
-	if (repositories.length === 0) {
+	if (!repositories || repositories.length === 0) {
 		return (
 			<Card>
 				<CardContent className="flex flex-col items-center justify-center py-8">
@@ -130,23 +138,31 @@ export function RepositorySelectorCompact({
 	placeholder = "Select repository",
 	disabled = false,
 }: RepositorySelectorProps) {
-	const repositories = useQuery(api.repositories.listRepositories);
+	const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+	const repositories = useQuery(
+		api.repositories.listRepositories,
+		isAuthenticated ? {} : "skip",
+	);
 
-	if (repositories === undefined) {
+	// Only show loading state when auth is done and data is actually loading
+	const isDataLoading =
+		!isAuthLoading && isAuthenticated && repositories === undefined;
+
+	if (isDataLoading) {
 		return (
 			<Select disabled>
 				<SelectTrigger>
-					<SelectValue />
+					<SelectValue>Loading...</SelectValue>
 				</SelectTrigger>
 			</Select>
 		);
 	}
 
-	if (repositories.length === 0) {
+	if (!repositories || repositories.length === 0) {
 		return (
 			<Select disabled>
 				<SelectTrigger>
-					<SelectValue />
+					<SelectValue>No repositories</SelectValue>
 				</SelectTrigger>
 			</Select>
 		);

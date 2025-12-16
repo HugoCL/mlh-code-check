@@ -24,7 +24,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { RubricItemForm } from "./rubric-item-form";
+import { RubricItemWizard } from "./rubric-item-wizard";
 
 interface RubricFormProps {
 	userId: Id<"users">;
@@ -103,6 +103,7 @@ export function RubricForm({
 			requireJustification?: boolean;
 			minValue?: number;
 			maxValue?: number;
+			rangeGuidance?: string;
 			maxExamples?: number;
 		};
 	}) => {
@@ -241,7 +242,7 @@ export function RubricForm({
 
 						{showAddItem ? (
 							<div className="mt-4">
-								<RubricItemForm
+								<RubricItemWizard
 									onSubmit={handleAddItem}
 									onCancel={() => setShowAddItem(false)}
 								/>
