@@ -58,4 +58,43 @@ export default defineSchema({
     })
         .index("by_user", ["userId"])
         .index("by_full_name", ["fullName"]),
+
+    analyses: defineTable({
+        userId: v.id("users"),
+        repositoryId: v.id("repositories"),
+        rubricId: v.id("rubrics"),
+        triggerRunId: v.optional(v.string()),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("running"),
+            v.literal("completed"),
+            v.literal("failed")
+        ),
+        totalItems: v.number(),
+        completedItems: v.number(),
+        failedItems: v.number(),
+        errorMessage: v.optional(v.string()),
+        createdAt: v.number(),
+        completedAt: v.optional(v.number()),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_and_status", ["userId", "status"])
+        .index("by_repository", ["repositoryId"])
+        .index("by_trigger_run", ["triggerRunId"]),
+
+    analysisResults: defineTable({
+        analysisId: v.id("analyses"),
+        rubricItemId: v.id("rubricItems"),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("processing"),
+            v.literal("completed"),
+            v.literal("failed")
+        ),
+        result: v.optional(v.any()), // Typed per evaluation type
+        error: v.optional(v.string()),
+        completedAt: v.optional(v.number()),
+    })
+        .index("by_analysis", ["analysisId"])
+        .index("by_analysis_and_item", ["analysisId", "rubricItemId"]),
 });

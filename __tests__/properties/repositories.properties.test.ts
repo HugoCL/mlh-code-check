@@ -238,13 +238,6 @@ describe("Property 10: Repository storage completeness", () => {
                         imageUrl: userData1.imageUrl,
                     });
 
-                    const userId2 = await t.mutation(api.users.syncUser, {
-                        clerkId: userData2.clerkId,
-                        email: userData2.email,
-                        name: userData2.name,
-                        imageUrl: userData2.imageUrl,
-                    });
-
                     // Connect repositories as first user
                     const user1RepoIds = [];
                     for (const repoData of uniqueRepos) {

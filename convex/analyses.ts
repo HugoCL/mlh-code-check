@@ -1,0 +1,295 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+
+// Create a new analysis job
+export const createAnalysis = mutation({
+    args: {
+        repositoryId: v.id("repositories"),
+        rubricId: v.id("rubrics"),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error("Not authenticated");
+        }
+
+        // Get user record
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+            .unique();
+
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        // Verify repository belongs to user
+        const repository = await ctx.db.get(args.repositoryId);
+        if (!repository || repository.userId !== user._id) {
+            throw new Error("Repository not found or access denied");
+        }
+
+        // Get rubric and count items
+        const rubric = await ctx.db.get(args.rubricId);
+        if (!rubric) {
+            throw new Error("Rubric not found");
+        }
+
+        // Verify user has access to rubric (either owns it or it's a system template)
+        if (!rubric.isSystemTemplate && rubric.userId !== user._id) {
+            throw new Error("Rubric not found or access denied");
+        }
+
+        // Count rubric items
+        const rubricItems = await ctx.db
+            .query("rubricItems")
+            .withIndex("by_rubric", (q) => q.eq("rubricId", args.rubricId))
+            .collect();
+
+        // Create analysis record
+        const analysisId = await ctx.db.insert("analyses", {
+            userId: user._id,
+            repositoryId: args.repositoryId,
+            rubricId: args.rubricId,
+            status: "pending",
+            totalItems: rubricItems.length,
+            completedItems: 0,
+            failedItems: 0,
+            createdAt: Date.now(),
+        });
+
+        // Create analysis result records for each rubric item
+        for (const item of rubricItems) {
+            await ctx.db.insert("analysisResults", {
+                analysisId,
+                rubricItemId: item._id,
+                status: "pending",
+            });
+        }
+
+        return analysisId;
+    },
+});
+
+// Update analysis progress
+export const updateAnalysisProgress = mutation({
+    args: {
+        analysisId: v.id("analyses"),
+        triggerRunId: v.optional(v.string()),
+        status: v.optional(
+            v.union(
+                v.literal("pending"),
+                v.literal("running"),
+                v.literal("completed"),
+                v.literal("failed")
+            )
+        ),
+        completedItems: v.optional(v.number()),
+        failedItems: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const analysis = await ctx.db.get(args.analysisId);
+        if (!analysis) {
+            throw new Error("Analysis not found");
+        }
+
+        const updates: Partial<{
+            triggerRunId: string;
+            status: "pending" | "running" | "completed" | "failed";
+            completedItems: number;
+            failedItems: number;
+        }> = {};
+        if (args.triggerRunId !== undefined) updates.triggerRunId = args.triggerRunId;
+        if (args.status !== undefined) updates.status = args.status;
+        if (args.completedItems !== undefined) updates.completedItems = args.completedItems;
+        if (args.failedItems !== undefined) updates.failedItems = args.failedItems;
+
+        await ctx.db.patch(args.analysisId, updates);
+    },
+});
+
+// Update individual item result
+export const updateItemResult = mutation({
+    args: {
+        analysisId: v.id("analyses"),
+        rubricItemId: v.id("rubricItems"),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("processing"),
+            v.literal("completed"),
+            v.literal("failed")
+        ),
+        result: v.optional(v.any()),
+        error: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        // Find the analysis result record
+        const analysisResult = await ctx.db
+            .query("analysisResults")
+            .withIndex("by_analysis_and_item", (q) =>
+                q.eq("analysisId", args.analysisId).eq("rubricItemId", args.rubricItemId)
+            )
+            .unique();
+
+        if (!analysisResult) {
+            throw new Error("Analysis result not found");
+        }
+
+        const updates: {
+            status: "pending" | "processing" | "completed" | "failed";
+            result?: unknown;
+            error?: string;
+            completedAt?: number;
+        } = {
+            status: args.status,
+        };
+
+        if (args.result !== undefined) updates.result = args.result;
+        if (args.error !== undefined) updates.error = args.error;
+        if (args.status === "completed" || args.status === "failed") {
+            updates.completedAt = Date.now();
+        }
+
+        await ctx.db.patch(analysisResult._id, updates);
+
+        // Update analysis progress counters
+        const allResults = await ctx.db
+            .query("analysisResults")
+            .withIndex("by_analysis", (q) => q.eq("analysisId", args.analysisId))
+            .collect();
+
+        const completedItems = allResults.filter((r) => r.status === "completed").length;
+        const failedItems = allResults.filter((r) => r.status === "failed").length;
+
+        await ctx.db.patch(args.analysisId, {
+            completedItems,
+            failedItems,
+        });
+    },
+});
+
+// Complete analysis
+export const completeAnalysis = mutation({
+    args: {
+        analysisId: v.id("analyses"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.analysisId, {
+            status: "completed",
+            completedAt: Date.now(),
+        });
+    },
+});
+
+// Fail analysis
+export const failAnalysis = mutation({
+    args: {
+        analysisId: v.id("analyses"),
+        errorMessage: v.string(),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.analysisId, {
+            status: "failed",
+            errorMessage: args.errorMessage,
+            completedAt: Date.now(),
+        });
+    },
+});
+
+// Get analysis with results
+export const getAnalysis = query({
+    args: {
+        analysisId: v.id("analyses"),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error("Not authenticated");
+        }
+
+        const analysis = await ctx.db.get(args.analysisId);
+        if (!analysis) {
+            return null;
+        }
+
+        // Get user record to verify access
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+            .unique();
+
+        if (!user || analysis.userId !== user._id) {
+            throw new Error("Access denied");
+        }
+
+        // Get repository and rubric info
+        const repository = await ctx.db.get(analysis.repositoryId);
+        const rubric = await ctx.db.get(analysis.rubricId);
+
+        // Get all results
+        const results = await ctx.db
+            .query("analysisResults")
+            .withIndex("by_analysis", (q) => q.eq("analysisId", args.analysisId))
+            .collect();
+
+        // Get rubric items for context
+        const rubricItems = await Promise.all(
+            results.map((result) => ctx.db.get(result.rubricItemId))
+        );
+
+        return {
+            ...analysis,
+            repository,
+            rubric,
+            results: results.map((result, index) => ({
+                ...result,
+                rubricItem: rubricItems[index],
+            })),
+        };
+    },
+});
+
+// List analyses for user
+export const listAnalyses = query({
+    args: {
+        limit: v.optional(v.number()),
+        cursor: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error("Not authenticated");
+        }
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+            .unique();
+
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        const analyses = await ctx.db
+            .query("analyses")
+            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .order("desc")
+            .take(args.limit || 20);
+
+        // Get repository and rubric info for each analysis
+        const enrichedAnalyses = await Promise.all(
+            analyses.map(async (analysis) => {
+                const repository = await ctx.db.get(analysis.repositoryId);
+                const rubric = await ctx.db.get(analysis.rubricId);
+                return {
+                    ...analysis,
+                    repository,
+                    rubric,
+                };
+            })
+        );
+
+        return enrichedAnalyses;
+    },
+});

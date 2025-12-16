@@ -80,7 +80,6 @@ export function RubricForm({
 				onSaved?.(rubricId);
 			} else {
 				const newRubricId = await createRubric({
-					userId,
 					name: value.name.trim(),
 					description: value.description.trim(),
 				});

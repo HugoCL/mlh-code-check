@@ -106,41 +106,60 @@
     - Implement repository search/filter
     - _Requirements: 4.1, 4.2_
 
-- [ ] 6. Implement analysis execution with Trigger.dev
-  - [ ] 6.1 Set up Trigger.dev configuration
+- [x] 6. Implement analysis execution with Trigger.dev
+
+
+
+  - [x] 6.1 Set up Trigger.dev configuration
+
+
     - Configure trigger.config.ts for the project
     - Set up environment variables for Trigger.dev
     - Install @trigger.dev/sdk and @trigger.dev/react-hooks
     - _Requirements: 5.2_
-  - [ ] 6.2 Create analysis data model
+
+
+  - [x] 6.2 Create analysis data model
+
+
     - Add analyses and analysisResults tables to schema
     - Implement createAnalysis mutation
     - Implement updateAnalysisProgress mutation
     - Implement updateItemResult mutation
+
+
     - Implement completeAnalysis and failAnalysis mutations
     - _Requirements: 5.1, 5.4, 5.5_
-  - [ ] 6.3 Write property tests for analysis state management
+  - [x] 6.3 Write property tests for analysis state management
     - **Property 11: Analysis creation with pending status**
     - **Property 12: Result storage completeness**
     - **Property 13: Analysis completion status**
     - **Validates: Requirements 5.1, 5.4, 5.5**
-  - [ ] 6.4 Implement analysis orchestrator task
+  - [x] 6.4 Implement analysis orchestrator task
+
+
     - Create analyzeRepository task in trigger/analyze.ts
     - Implement repository content fetching via GitHub MCP
     - Set up metadata for real-time progress updates
     - Trigger parallel rubric item evaluations using batch.triggerByTaskAndWait
     - Handle completion and error aggregation
     - _Requirements: 5.2, 5.3, 5.5, 5.6_
-  - [ ] 6.5 Implement rubric item evaluation worker task
+
+
+  - [x] 6.5 Implement rubric item evaluation worker task
     - Create evaluateRubricItem task
     - Implement AI prompt construction per evaluation type
     - Integrate Vercel AI SDK for model calls
+
+
     - Return structured results matching evaluation type
+
+
     - _Requirements: 5.3, 5.4_
-  - [ ] 6.6 Write property test for evaluation result structure
+  - [x] 6.6 Write property test for evaluation result structure
     - **Property 4: Evaluation result structure matches type**
     - **Validates: Requirements 2.3, 2.4, 2.5, 2.6, 7.1, 7.2, 7.3, 7.4**
-  - [ ] 6.7 Write property test for partial failure handling
+  - [x] 6.7 Write property test for partial failure handling
     - **Property 14: Partial failure isolation**
     - **Validates: Requirements 5.6**
 
