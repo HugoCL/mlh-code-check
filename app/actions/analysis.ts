@@ -16,6 +16,44 @@ export interface StartAnalysisResult {
 }
 
 /**
+ * Server action to get a public access token for an existing analysis.
+ * Used when the analysis record already exists (e.g., one-off analyses).
+ */
+export async function getAccessTokenForAnalysis(
+	analysisId: string,
+): Promise<StartAnalysisResult> {
+	try {
+		// Get the authenticated user
+		const { userId } = await clerkAuth();
+		if (!userId) {
+			return { success: false, error: "Not authenticated" };
+		}
+
+		// Generate a public access token for real-time updates
+		const publicAccessToken = await auth.createPublicToken({
+			scopes: {
+				read: {
+					runs: true,
+				},
+			},
+			expirationTime: "1h",
+		});
+
+		return {
+			success: true,
+			analysisId,
+			accessToken: publicAccessToken,
+		};
+	} catch (error) {
+		console.error("Failed to get access token:", error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+/**
  * Server action to start a new analysis.
  * Creates the analysis record in Convex and returns a public access token
  * for real-time progress tracking.
@@ -78,23 +116,38 @@ export interface TriggerAnalysisResult {
 	error?: string;
 }
 
+export interface TriggerAnalysisPayload {
+	analysisId: string;
+	rubricId: string;
+	userId: string;
+	// For connected repository analyses
+	repositoryId?: string;
+	// For one-off analyses
+	repositoryUrl?: string;
+	repositoryOwner?: string;
+	repositoryName?: string;
+	branch?: string;
+}
+
 /**
  * Server action to trigger the analysis task.
  * This is called after the analysis record is created.
+ * Supports both connected repository analyses and one-off analyses.
  */
 export async function triggerAnalysisTask(
-	analysisId: string,
-	repositoryId: string,
-	rubricId: string,
-	userId: string,
+	payload: TriggerAnalysisPayload,
 ): Promise<TriggerAnalysisResult> {
 	try {
-		// Trigger the analysis task
+		// Trigger the analysis task with the appropriate payload
 		const handle = await tasks.trigger("analyze-repository", {
-			analysisId,
-			repositoryId,
-			rubricId,
-			userId,
+			analysisId: payload.analysisId,
+			repositoryId: payload.repositoryId,
+			repositoryUrl: payload.repositoryUrl,
+			repositoryOwner: payload.repositoryOwner,
+			repositoryName: payload.repositoryName,
+			branch: payload.branch,
+			rubricId: payload.rubricId,
+			userId: payload.userId,
 		});
 
 		// Update the analysis record with the trigger run ID
@@ -103,7 +156,7 @@ export async function triggerAnalysisTask(
 		if (token) {
 			convex.setAuth(token);
 			await convex.mutation(api.analyses.updateAnalysisProgress, {
-				analysisId: analysisId as Id<"analyses">,
+				analysisId: payload.analysisId as Id<"analyses">,
 				triggerRunId: handle.id,
 			});
 		}

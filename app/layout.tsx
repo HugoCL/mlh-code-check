@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "AI Code Review",
+	title: "MLH Code Inspector",
 	description: "AI-powered code review application",
 };
 
