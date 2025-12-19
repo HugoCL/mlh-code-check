@@ -7,6 +7,7 @@ import {
     QueryCtx,
     query,
 } from "./_generated/server";
+import { SYSTEM_TEMPLATES } from "../lib/templates.js";
 import { evaluationTypeValidator, rubricItemConfigValidator } from "./schema";
 
 // Helper function to get authenticated user
@@ -501,6 +502,87 @@ export const getRubricItem = query({
  * This upserts system templates to ensure they're always available.
  * Requirements: 3.1 - Load templates from configuration and store in Convex
  */
+async function upsertSystemTemplates(
+    ctx: MutationCtx,
+    templates: {
+        id: string;
+        name: string;
+        description: string;
+        items: {
+            name: string;
+            description: string;
+            evaluationType: "yes_no" | "range" | "comments" | "code_examples";
+            config: {
+                requireJustification?: boolean;
+                minValue?: number;
+                maxValue?: number;
+                rangeGuidance?: string;
+                maxExamples?: number;
+            };
+        }[];
+    }[],
+) {
+    const now = Date.now();
+
+    for (const template of templates) {
+        // Check if template already exists
+        const existing = await ctx.db
+            .query("rubrics")
+            .withIndex("by_system_template_id", (q) =>
+                q.eq("systemTemplateId", template.id),
+            )
+            .first();
+
+        let rubricId: Id<"rubrics"> | undefined = undefined;
+
+        if (existing) {
+            // Update existing template
+            await ctx.db.patch(existing._id, {
+                name: template.name,
+                description: template.description,
+                updatedAt: now,
+            });
+            rubricId = existing._id;
+
+            // Delete existing items to replace them
+            const existingItems = await ctx.db
+                .query("rubricItems")
+                .withIndex("by_rubric", (q) => q.eq("rubricId", existing._id))
+                .collect();
+
+            for (const item of existingItems) {
+                await ctx.db.delete(item._id);
+            }
+        } else {
+            // Create new template
+            rubricId = await ctx.db.insert("rubrics", {
+                userId: undefined, // System templates have no user
+                name: template.name,
+                description: template.description,
+                isSystemTemplate: true,
+                systemTemplateId: template.id,
+                createdAt: now,
+                updatedAt: now,
+            });
+        }
+
+        // Add all items
+        for (let i = 0; i < template.items.length; i++) {
+            const item = template.items[i];
+            await ctx.db.insert("rubricItems", {
+                rubricId: rubricId,
+                name: item.name,
+                description: item.description,
+                evaluationType: item.evaluationType,
+                config: item.config,
+                order: i,
+            });
+        }
+    }
+
+    return { loaded: templates.length };
+}
+
 export const loadSystemTemplates = internalMutation({
     args: {
         templates: v.array(
@@ -520,65 +602,18 @@ export const loadSystemTemplates = internalMutation({
         ),
     },
     handler: async (ctx, args) => {
-        const now = Date.now();
+        return await upsertSystemTemplates(ctx, args.templates);
+    },
+});
 
-        for (const template of args.templates) {
-            // Check if template already exists
-            const existing = await ctx.db
-                .query("rubrics")
-                .withIndex("by_system_template_id", (q) =>
-                    q.eq("systemTemplateId", template.id),
-                )
-                .first();
-
-            let rubricId: Id<"rubrics"> | undefined = undefined;
-
-            if (existing) {
-                // Update existing template
-                await ctx.db.patch(existing._id, {
-                    name: template.name,
-                    description: template.description,
-                    updatedAt: now,
-                });
-                rubricId = existing._id;
-
-                // Delete existing items to replace them
-                const existingItems = await ctx.db
-                    .query("rubricItems")
-                    .withIndex("by_rubric", (q) => q.eq("rubricId", existing._id))
-                    .collect();
-
-                for (const item of existingItems) {
-                    await ctx.db.delete(item._id);
-                }
-            } else {
-                // Create new template
-                rubricId = await ctx.db.insert("rubrics", {
-                    userId: undefined, // System templates have no user
-                    name: template.name,
-                    description: template.description,
-                    isSystemTemplate: true,
-                    systemTemplateId: template.id,
-                    createdAt: now,
-                    updatedAt: now,
-                });
-            }
-
-            // Add all items
-            for (let i = 0; i < template.items.length; i++) {
-                const item = template.items[i];
-                await ctx.db.insert("rubricItems", {
-                    rubricId: rubricId,
-                    name: item.name,
-                    description: item.description,
-                    evaluationType: item.evaluationType,
-                    config: item.config,
-                    order: i,
-                });
-            }
-        }
-
-        return { loaded: args.templates.length };
+/**
+ * Public mutation to sync system templates.
+ */
+export const syncSystemTemplates = mutation({
+    args: {},
+    handler: async (ctx) => {
+        await getAuthenticatedUser(ctx);
+        return await upsertSystemTemplates(ctx, SYSTEM_TEMPLATES);
     },
 });
 

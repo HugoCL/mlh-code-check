@@ -29,6 +29,7 @@ interface RubricItemConfig {
 	requireJustification?: boolean;
 	minValue?: number;
 	maxValue?: number;
+	rangeGuidance?: string;
 	maxExamples?: number;
 }
 
@@ -63,6 +64,7 @@ const formSchema = z.object({
 			requireJustification: z.boolean().optional(),
 			minValue: z.number().optional(),
 			maxValue: z.number().optional(),
+			rangeGuidance: z.string().optional(),
 			maxExamples: z.number().optional(),
 		})
 		.refine(
@@ -74,6 +76,16 @@ const formSchema = z.object({
 			},
 			{ message: "Minimum value must be less than maximum value" },
 		),
+}).superRefine((data, ctx) => {
+	if (data.evaluationType === "range") {
+		if (!data.config.rangeGuidance || data.config.rangeGuidance.trim().length === 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "Score guidance is required for range evaluation type",
+				path: ["config", "rangeGuidance"],
+			});
+		}
+	}
 });
 
 export function RubricItemForm({

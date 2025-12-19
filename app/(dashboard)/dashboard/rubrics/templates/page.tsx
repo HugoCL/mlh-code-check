@@ -10,6 +10,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,8 @@ export default function TemplatesPage() {
 	const { isAuthenticated } = useConvexAuth();
 	const [viewingTemplateId, setViewingTemplateId] =
 		useState<Id<"rubrics"> | null>(null);
+	const [isSyncing, setIsSyncing] = useState(false);
+	const syncTemplates = useMutation(api.rubrics.syncSystemTemplates);
 	const currentUser = useQuery(
 		api.users.getCurrentUser,
 		isAuthenticated ? {} : "skip",
@@ -69,6 +72,21 @@ export default function TemplatesPage() {
 		setViewingTemplateId(templateId);
 	};
 
+	const handleSyncTemplates = async () => {
+		if (isSyncing) return;
+		setIsSyncing(true);
+		try {
+			await syncTemplates({});
+			toast.success("System templates synced");
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to sync templates";
+			toast.error(message);
+		} finally {
+			setIsSyncing(false);
+		}
+	};
+
 	if (currentUser === undefined || rubrics === undefined) {
 		return (
 			<div className="flex items-center justify-center py-12">
@@ -89,12 +107,18 @@ export default function TemplatesPage() {
 
 	return (
 		<div className="space-y-6">
-			<div>
-				<h1 className="text-2xl font-bold">Rubric Templates</h1>
-				<p className="text-muted-foreground">
-					Browse pre-built evaluation templates. Duplicate a template to
-					customize it for your needs.
-				</p>
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div>
+					<h1 className="text-2xl font-bold">Rubric Templates</h1>
+					<p className="text-muted-foreground">
+						Browse pre-built evaluation templates. Duplicate a template to
+						customize it for your needs.
+					</p>
+				</div>
+				<Button onClick={handleSyncTemplates} disabled={isSyncing}>
+					{isSyncing && <Spinner className="size-4" />}
+					Sync Templates
+				</Button>
 			</div>
 
 			{systemTemplates.length === 0 ? (

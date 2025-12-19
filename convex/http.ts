@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { api, internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import { SYSTEM_TEMPLATES } from "../lib/templates.js";
 
 const http = httpRouter();
 
@@ -48,18 +49,37 @@ http.route({
  */
 http.route({
 	path: "/init-templates",
+	method: "OPTIONS",
+	handler: httpAction(async (_ctx, request) => {
+		const origin = request.headers.get("origin") ?? "*";
+		return new Response(null, {
+			status: 204,
+			headers: {
+				"Access-Control-Allow-Origin": origin,
+				"Access-Control-Allow-Methods": "POST, OPTIONS",
+				"Access-Control-Allow-Headers": "Content-Type",
+			},
+		});
+	}),
+});
+
+http.route({
+	path: "/init-templates",
 	method: "POST",
 	handler: httpAction(async (ctx, request) => {
-		// Import templates dynamically to avoid bundling issues
-		const { SYSTEM_TEMPLATES } = await import("../lib/templates.js");
-
 		const result = await ctx.runMutation(internal.rubrics.loadSystemTemplates, {
 			templates: SYSTEM_TEMPLATES,
 		});
 
+		const origin = request.headers.get("origin") ?? "*";
 		return new Response(JSON.stringify(result), {
 			status: 200,
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"Access-Control-Allow-Origin": origin,
+				"Access-Control-Allow-Methods": "POST, OPTIONS",
+				"Access-Control-Allow-Headers": "Content-Type",
+			},
 		});
 	}),
 });

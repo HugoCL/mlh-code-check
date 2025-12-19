@@ -278,6 +278,7 @@ function RubricItemCard({
 			requireJustification?: boolean;
 			minValue?: number;
 			maxValue?: number;
+			rangeGuidance?: string;
 			maxExamples?: number;
 		};
 		order: number;
@@ -322,6 +323,11 @@ function RubricItemCard({
 							Range: {item.config.minValue} - {item.config.maxValue}
 						</p>
 					)}
+				{item.evaluationType === "range" && item.config.rangeGuidance && (
+					<p className="text-muted-foreground text-xs whitespace-pre-line">
+						Guidance: {item.config.rangeGuidance}
+					</p>
+				)}
 			</div>
 			<Button
 				variant="ghost"
