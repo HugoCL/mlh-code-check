@@ -139,6 +139,7 @@ export default function AnalysisProgressPage() {
 					rubricId={analysis.rubricId}
 					userId={currentUser._id}
 					rubricItems={rubricItems}
+					existingRunId={analysis.triggerRunId}
 					progressOverride={{
 						totalItems: analysis.totalItems,
 						completedItems: analysis.completedItems,
@@ -155,6 +156,7 @@ export default function AnalysisProgressPage() {
 					rubricId={analysis.rubricId}
 					userId={currentUser._id}
 					rubricItems={rubricItems}
+					existingRunId={analysis.triggerRunId}
 					progressOverride={{
 						totalItems: analysis.totalItems,
 						completedItems: analysis.completedItems,

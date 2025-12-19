@@ -59,6 +59,7 @@ interface ConnectedAnalysisProps {
 	userId: string;
 	rubricItems?: RubricItem[];
 	progressOverride?: AnalysisProgressOverride;
+	existingRunId?: string;
 	onComplete?: (analysisId: string) => void;
 	onError?: (error: string) => void;
 }
@@ -75,6 +76,7 @@ interface OneOffAnalysisProps {
 	userId: string;
 	rubricItems?: RubricItem[];
 	progressOverride?: AnalysisProgressOverride;
+	existingRunId?: string;
 	onComplete?: (analysisId: string) => void;
 	onError?: (error: string) => void;
 }
@@ -114,10 +116,49 @@ export function AnalysisRunner(props: AnalysisRunnerProps) {
 		userId,
 		rubricItems = [],
 		progressOverride,
+		existingRunId,
 		onComplete,
 		onError,
 	} = props;
 	const [state, setState] = useState<AnalysisState>({ status: "idle" });
+
+	useEffect(() => {
+		if (!existingRunId || state.status !== "idle") {
+			return;
+		}
+
+		let isActive = true;
+
+		const resumeRun = async () => {
+			setState({ status: "starting" });
+
+			const tokenResult = await getAccessTokenForAnalysis(analysisId);
+			if (!isActive) {
+				return;
+			}
+
+			if (!tokenResult.success || !tokenResult.accessToken) {
+				const errorMessage =
+					tokenResult.error ?? "Failed to resume analysis run";
+				setState({ status: "failed", error: errorMessage });
+				onError?.(errorMessage);
+				return;
+			}
+
+			setState({
+				status: "running",
+				analysisId,
+				runId: existingRunId,
+				accessToken: tokenResult.accessToken,
+			});
+		};
+
+		resumeRun();
+
+		return () => {
+			isActive = false;
+		};
+	}, [analysisId, existingRunId, onError, state.status]);
 
 	const handleStartAnalysis = useCallback(async () => {
 		setState({ status: "starting" });
