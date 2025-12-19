@@ -85,7 +85,7 @@ export function CodeExamplesResultCard({
 			<CardContent className="space-y-6">
 				{result.examples.map((example, index) => (
 					<div
-						key={`${example.filePath}-${example.lineStart}`}
+						key={`${example.filePath}-${example.lineStart}-${example.lineEnd}-${index}`}
 						className="space-y-2"
 					>
 						<div className="flex items-center gap-2 text-sm">

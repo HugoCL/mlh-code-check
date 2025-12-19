@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AnalysisRunner } from "@/components/analysis/analysis-runner";
+import type { ItemStatus } from "@/components/analysis/item-status-list";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
@@ -85,6 +86,13 @@ export default function AnalysisProgressPage() {
 			id: item._id,
 			name: item.name,
 		})) ?? [];
+	const itemStatusOverrides = (analysis.results ?? []).reduce(
+		(acc, result) => {
+			acc[result.rubricItemId] = result.status as ItemStatus;
+			return acc;
+		},
+		{} as Record<string, ItemStatus>,
+	);
 
 	// Determine if this is a one-off analysis (no repositoryId)
 	const isOneOff = !analysis.repositoryId;
@@ -131,6 +139,12 @@ export default function AnalysisProgressPage() {
 					rubricId={analysis.rubricId}
 					userId={currentUser._id}
 					rubricItems={rubricItems}
+					progressOverride={{
+						totalItems: analysis.totalItems,
+						completedItems: analysis.completedItems,
+						failedItems: analysis.failedItems,
+						itemStatuses: itemStatusOverrides,
+					}}
 					onComplete={handleComplete}
 					onError={handleError}
 				/>
@@ -141,6 +155,12 @@ export default function AnalysisProgressPage() {
 					rubricId={analysis.rubricId}
 					userId={currentUser._id}
 					rubricItems={rubricItems}
+					progressOverride={{
+						totalItems: analysis.totalItems,
+						completedItems: analysis.completedItems,
+						failedItems: analysis.failedItems,
+						itemStatuses: itemStatusOverrides,
+					}}
 					onComplete={handleComplete}
 					onError={handleError}
 				/>

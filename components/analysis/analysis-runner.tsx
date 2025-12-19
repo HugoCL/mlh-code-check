@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import type { analyzeRepository } from "@/trigger/analyze";
-import { type ItemStatusInfo, ItemStatusList } from "./item-status-list";
+import {
+	type ItemStatus,
+	type ItemStatusInfo,
+	ItemStatusList,
+} from "./item-status-list";
 import { ProgressBar } from "./progress-bar";
 
 interface AnalysisProgressMetadata {
@@ -40,6 +44,13 @@ interface RubricItem {
 	name: string;
 }
 
+interface AnalysisProgressOverride {
+	totalItems?: number;
+	completedItems?: number;
+	failedItems?: number;
+	itemStatuses?: Record<string, ItemStatus>;
+}
+
 // Props for connected repository analysis
 interface ConnectedAnalysisProps {
 	analysisId: string;
@@ -47,6 +58,7 @@ interface ConnectedAnalysisProps {
 	rubricId: string;
 	userId: string;
 	rubricItems?: RubricItem[];
+	progressOverride?: AnalysisProgressOverride;
 	onComplete?: (analysisId: string) => void;
 	onError?: (error: string) => void;
 }
@@ -62,6 +74,7 @@ interface OneOffAnalysisProps {
 	rubricId: string;
 	userId: string;
 	rubricItems?: RubricItem[];
+	progressOverride?: AnalysisProgressOverride;
 	onComplete?: (analysisId: string) => void;
 	onError?: (error: string) => void;
 }
@@ -100,6 +113,7 @@ export function AnalysisRunner(props: AnalysisRunnerProps) {
 		rubricId,
 		userId,
 		rubricItems = [],
+		progressOverride,
 		onComplete,
 		onError,
 	} = props;
@@ -258,6 +272,7 @@ export function AnalysisRunner(props: AnalysisRunnerProps) {
 			accessToken={state.accessToken}
 			analysisId={state.analysisId}
 			rubricItems={rubricItems}
+			progressOverride={progressOverride}
 			onComplete={() => {
 				setState({ status: "completed", analysisId: state.analysisId });
 				onComplete?.(state.analysisId);
@@ -275,6 +290,7 @@ interface AnalysisProgressViewProps {
 	accessToken: string;
 	analysisId: string;
 	rubricItems: RubricItem[];
+	progressOverride?: AnalysisProgressOverride;
 	onComplete: () => void;
 	onFailed: (error: string) => void;
 }
@@ -284,6 +300,7 @@ function AnalysisProgressView({
 	accessToken,
 	analysisId,
 	rubricItems,
+	progressOverride,
 	onComplete,
 	onFailed,
 }: AnalysisProgressViewProps) {
@@ -300,12 +317,22 @@ function AnalysisProgressView({
 	const itemStatuses: ItemStatusInfo[] = rubricItems.map((item) => ({
 		id: item.id,
 		name: item.name,
-		status: progressMetadata?.items?.[item.id] ?? "pending",
+		status:
+			progressOverride?.itemStatuses?.[item.id] ??
+			progressMetadata?.items?.[item.id] ??
+			"pending",
 	}));
 
-	const totalItems = progressMetadata?.totalItems ?? rubricItems.length;
-	const completedItems = progressMetadata?.completedItems ?? 0;
-	const failedItems = progressMetadata?.failedItems ?? 0;
+	const totalItems =
+		progressOverride?.totalItems ??
+		progressMetadata?.totalItems ??
+		rubricItems.length;
+	const completedItems =
+		progressOverride?.completedItems ??
+		progressMetadata?.completedItems ??
+		0;
+	const failedItems =
+		progressOverride?.failedItems ?? progressMetadata?.failedItems ?? 0;
 
 	// Check if analysis is complete
 	const isComplete = run?.status === "COMPLETED";
