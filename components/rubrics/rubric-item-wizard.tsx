@@ -3,7 +3,7 @@
 import { ArrowLeft02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,8 +26,14 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatOptionList, parseOptionList } from "@/lib/utils";
 
-type EvaluationType = "yes_no" | "range" | "comments" | "code_examples";
+type EvaluationType =
+	| "yes_no"
+	| "range"
+	| "comments"
+	| "code_examples"
+	| "options";
 
 interface RubricItemConfig {
 	requireJustification?: boolean;
@@ -35,6 +41,9 @@ interface RubricItemConfig {
 	maxValue?: number;
 	rangeGuidance?: string;
 	maxExamples?: number;
+	options?: string[];
+	allowMultiple?: boolean;
+	maxSelections?: number;
 }
 
 interface RubricItemWizardProps {
@@ -83,6 +92,36 @@ const rangeConfigSchema = z
 const codeExamplesConfigSchema = z.object({
 	maxExamples: z.number().min(1).max(20).optional(),
 });
+
+const optionsConfigSchema = z
+	.object({
+		options: z.array(z.string()).min(1, "At least one option is required"),
+		allowMultiple: z.boolean().optional(),
+		maxSelections: z.number().optional(),
+	})
+	.superRefine((data, ctx) => {
+		if (data.maxSelections !== undefined) {
+			if (!data.allowMultiple) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Enable multiple selections to set a maximum",
+					path: ["allowMultiple"],
+				});
+			} else if (data.maxSelections < 1) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Maximum selections must be at least 1",
+					path: ["maxSelections"],
+				});
+			} else if (data.options.length > 0 && data.maxSelections > data.options.length) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Maximum selections cannot exceed the number of options",
+					path: ["maxSelections"],
+				});
+			}
+		}
+	});
 
 export function RubricItemWizard({
 	onSubmit,
@@ -153,6 +192,11 @@ function TypeSelectionStep({
 			label: "Code Examples",
 			description: "AI provides specific code examples from the repository",
 		},
+		{
+			value: "options" as const,
+			label: "Options",
+			description: "AI selects from a predefined list of options",
+		},
 	];
 
 	return (
@@ -212,6 +256,8 @@ function ItemDetailsStep({
 					return rangeConfigSchema;
 				case "code_examples":
 					return codeExamplesConfigSchema;
+				case "options":
+					return optionsConfigSchema;
 				default:
 					return z.object({});
 			}
@@ -228,6 +274,8 @@ function ItemDetailsStep({
 				return { minValue: undefined, maxValue: undefined, rangeGuidance: "" };
 			case "code_examples":
 				return { maxExamples: undefined };
+			case "options":
+				return { options: [], allowMultiple: false };
 			default:
 				return {};
 		}
@@ -257,6 +305,7 @@ function ItemDetailsStep({
 		range: "Range (Score)",
 		comments: "Comments",
 		code_examples: "Code Examples",
+		options: "Options",
 	};
 
 	return (
@@ -495,6 +544,11 @@ function ConfigSection({
 				</Field>
 			);
 
+		case "options":
+			return (
+				<OptionsConfigSection config={config} onChange={onChange} />
+			);
+
 		case "comments":
 			return (
 				<div className="text-muted-foreground text-sm">
@@ -505,4 +559,104 @@ function ConfigSection({
 		default:
 			return null;
 	}
+}
+
+function OptionsConfigSection({
+	config,
+	onChange,
+}: {
+	config: RubricItemConfig;
+	onChange: (config: RubricItemConfig) => void;
+}) {
+	const [optionsText, setOptionsText] = useState(() =>
+		formatOptionList(config.options),
+	);
+
+	useEffect(() => {
+		setOptionsText(formatOptionList(config.options));
+	}, [config.options]);
+
+	const options = config.options ?? [];
+	const allowMultiple = config.allowMultiple ?? false;
+
+	return (
+		<div className="space-y-4">
+			<Field>
+				<FieldLabel htmlFor="options-list">
+					Options <span className="text-destructive">*</span>
+				</FieldLabel>
+				<FieldDescription>
+					Enter one option per line (commas are also supported).
+				</FieldDescription>
+				<Textarea
+					id="options-list"
+					value={optionsText}
+					onChange={(e) => {
+						const value = e.target.value;
+						setOptionsText(value);
+						onChange({
+							...config,
+							options: parseOptionList(value),
+						});
+					}}
+					placeholder="JavaScript&#10;TypeScript&#10;Python&#10;Other"
+					rows={4}
+					className={options.length === 0 ? "border-destructive" : ""}
+				/>
+				{options.length === 0 && (
+					<p className="text-destructive text-sm">
+						At least one option is required
+					</p>
+				)}
+			</Field>
+
+			<Field orientation="horizontal">
+				<Checkbox
+					id="allow-multiple"
+					checked={allowMultiple}
+					onCheckedChange={(checked) => {
+						onChange({
+							...config,
+							allowMultiple: checked === true,
+							maxSelections:
+								checked === true ? config.maxSelections : undefined,
+						});
+					}}
+				/>
+				<FieldLabel htmlFor="allow-multiple">
+					Allow multiple selections
+				</FieldLabel>
+				<FieldDescription>
+					Let the AI choose more than one option if needed
+				</FieldDescription>
+			</Field>
+
+			{allowMultiple && (
+				<Field>
+					<FieldLabel htmlFor="max-selections">
+						Maximum Selections
+					</FieldLabel>
+					<FieldDescription>
+						Optional cap on how many options can be selected
+					</FieldDescription>
+					<Input
+						id="max-selections"
+						type="number"
+						value={config.maxSelections?.toString() ?? ""}
+						onChange={(e) =>
+							onChange({
+								...config,
+								maxSelections: e.target.value
+									? Number(e.target.value)
+									: undefined,
+							})
+						}
+						placeholder="2"
+						min={1}
+						max={options.length || undefined}
+					/>
+				</Field>
+			)}
+		</div>
+	);
 }

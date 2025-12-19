@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
  * - range: contains numeric `value` within configured `min`/`max` bounds, and string `rationale`
  * - comments: contains string `feedback`
  * - code_examples: contains array of examples, each with `filePath`, `lineStart`, `lineEnd`, `code`, and `explanation`
+ * - options: contains array `selections` of selected option strings
  * **Validates: Requirements 2.3, 2.4, 2.5, 2.6, 7.1, 7.2, 7.3, 7.4**
  */
 describe("Property 4: Evaluation result structure matches type", () => {
@@ -48,6 +49,14 @@ describe("Property 4: Evaluation result structure matches type", () => {
 				.filter((example) => example.lineStart <= example.lineEnd),
 			{ minLength: 1, maxLength: 5 },
 		),
+	});
+
+	// Arbitrary for generating options results
+	const optionsResultArbitrary = fc.record({
+		selections: fc.array(fc.string({ minLength: 1, maxLength: 50 }), {
+			minLength: 1,
+			maxLength: 5,
+		}),
 	});
 
 	it("should validate yes_no result structure", async () => {
@@ -115,6 +124,20 @@ describe("Property 4: Evaluation result structure matches type", () => {
 		);
 	});
 
+	it("should validate options result structure", async () => {
+		await fc.assert(
+			fc.property(optionsResultArbitrary, (result) => {
+				expect(Array.isArray(result.selections)).toBe(true);
+				expect(result.selections.length).toBeGreaterThan(0);
+				for (const selection of result.selections) {
+					expect(typeof selection).toBe("string");
+					expect(selection.length).toBeGreaterThan(0);
+				}
+			}),
+			{ numRuns: 100 },
+		);
+	});
+
 	it("should validate mixed evaluation types maintain structure integrity", async () => {
 		const mixedResultArbitrary = fc.oneof(
 			fc.record({ type: fc.constant("yes_no"), result: yesNoResultArbitrary }),
@@ -126,6 +149,10 @@ describe("Property 4: Evaluation result structure matches type", () => {
 			fc.record({
 				type: fc.constant("code_examples"),
 				result: codeExamplesResultArbitrary,
+			}),
+			fc.record({
+				type: fc.constant("options"),
+				result: optionsResultArbitrary,
 			}),
 		);
 
@@ -156,6 +183,10 @@ describe("Property 4: Evaluation result structure matches type", () => {
 					case "code_examples":
 						expect(Array.isArray(evaluation.result.examples)).toBe(true);
 						expect(evaluation.result.examples.length).toBeGreaterThan(0);
+						break;
+					case "options":
+						expect(Array.isArray(evaluation.result.selections)).toBe(true);
+						expect(evaluation.result.selections.length).toBeGreaterThan(0);
 						break;
 				}
 			}),

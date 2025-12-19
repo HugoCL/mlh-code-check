@@ -36,20 +36,64 @@ const rubricDataArbitrary = fc.record({
 });
 
 // Fixed rubric item arbitrary - only generate valid configurations
-const rubricItemArbitrary = fc.record({
-    name: fc
-        .string({ minLength: 1, maxLength: 100 })
-        .filter((s) => s.trim().length > 0),
-    description: fc
-        .string({ minLength: 1, maxLength: 500 })
-        .filter((s) => s.trim().length > 0),
-    evaluationType: fc.constantFrom("yes_no", "comments", "code_examples"), // Exclude range for now
-    config: fc.record({
-        requireJustification: fc.option(fc.boolean(), { nil: undefined }),
-        maxExamples: fc.option(fc.integer({ min: 1, max: 10 }), { nil: undefined }),
+const rubricItemArbitrary = fc.oneof(
+    fc.record({
+        name: fc
+            .string({ minLength: 1, maxLength: 100 })
+            .filter((s) => s.trim().length > 0),
+        description: fc
+            .string({ minLength: 1, maxLength: 500 })
+            .filter((s) => s.trim().length > 0),
+        evaluationType: fc.constant("yes_no"),
+        config: fc.record({
+            requireJustification: fc.option(fc.boolean(), { nil: undefined }),
+        }),
+        order: fc.integer({ min: 0, max: 100 }),
     }),
-    order: fc.integer({ min: 0, max: 100 }),
-});
+    fc.record({
+        name: fc
+            .string({ minLength: 1, maxLength: 100 })
+            .filter((s) => s.trim().length > 0),
+        description: fc
+            .string({ minLength: 1, maxLength: 500 })
+            .filter((s) => s.trim().length > 0),
+        evaluationType: fc.constant("comments"),
+        config: fc.constant({}),
+        order: fc.integer({ min: 0, max: 100 }),
+    }),
+    fc.record({
+        name: fc
+            .string({ minLength: 1, maxLength: 100 })
+            .filter((s) => s.trim().length > 0),
+        description: fc
+            .string({ minLength: 1, maxLength: 500 })
+            .filter((s) => s.trim().length > 0),
+        evaluationType: fc.constant("code_examples"),
+        config: fc.record({
+            maxExamples: fc.option(fc.integer({ min: 1, max: 10 }), {
+                nil: undefined,
+            }),
+        }),
+        order: fc.integer({ min: 0, max: 100 }),
+    }),
+    fc.record({
+        name: fc
+            .string({ minLength: 1, maxLength: 100 })
+            .filter((s) => s.trim().length > 0),
+        description: fc
+            .string({ minLength: 1, maxLength: 500 })
+            .filter((s) => s.trim().length > 0),
+        evaluationType: fc.constant("options"),
+        config: fc.record({
+            options: fc.array(fc.string({ minLength: 1, maxLength: 30 }), {
+                minLength: 1,
+                maxLength: 6,
+            }),
+            allowMultiple: fc.option(fc.boolean(), { nil: undefined }),
+        }),
+        order: fc.integer({ min: 0, max: 100 }),
+    }),
+);
 
 // Arbitrary for generating evaluation results based on type
 const evaluationResultArbitrary = fc.oneof(
@@ -82,6 +126,16 @@ const evaluationResultArbitrary = fc.oneof(
                 }),
                 { minLength: 1, maxLength: 5 },
             ),
+        }),
+    }),
+    // options result
+    fc.record({
+        type: fc.constant("options"),
+        result: fc.record({
+            selections: fc.array(fc.string({ minLength: 1, maxLength: 50 }), {
+                minLength: 1,
+                maxLength: 5,
+            }),
         }),
     }),
 );

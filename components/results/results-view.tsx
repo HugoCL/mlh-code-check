@@ -24,10 +24,19 @@ import {
 	type CommentsResult,
 	CommentsResultCard,
 } from "./comments-result-card";
+import {
+	type OptionsResult,
+	OptionsResultCard,
+} from "./options-result-card";
 import { type RangeResult, RangeResultCard } from "./range-result-card";
 import { type YesNoResult, YesNoResultCard } from "./yes-no-result-card";
 
-export type EvaluationType = "yes_no" | "range" | "comments" | "code_examples";
+export type EvaluationType =
+	| "yes_no"
+	| "range"
+	| "comments"
+	| "code_examples"
+	| "options";
 
 export interface RubricItem {
 	_id: string;
@@ -39,6 +48,9 @@ export interface RubricItem {
 		minValue?: number;
 		maxValue?: number;
 		maxExamples?: number;
+		options?: string[];
+		allowMultiple?: boolean;
+		maxSelections?: number;
 	};
 }
 
@@ -46,7 +58,12 @@ export interface AnalysisResult {
 	_id: string;
 	rubricItemId: string;
 	status: "pending" | "processing" | "completed" | "failed";
-	result?: YesNoResult | RangeResult | CommentsResult | CodeExamplesResult;
+	result?:
+		| YesNoResult
+		| RangeResult
+		| CommentsResult
+		| CodeExamplesResult
+		| OptionsResult;
 	error?: string;
 	rubricItem?: RubricItem;
 }
@@ -203,6 +220,15 @@ export function ResultsView({ analysis }: ResultsViewProps) {
 									itemName={item.name}
 									itemDescription={item.description}
 									result={evaluationResult as CodeExamplesResult}
+								/>
+							);
+						case "options":
+							return (
+								<OptionsResultCard
+									key={result._id}
+									itemName={item.name}
+									itemDescription={item.description}
+									result={evaluationResult as OptionsResult}
 								/>
 							);
 						default:

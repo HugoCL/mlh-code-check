@@ -26,7 +26,28 @@ async function getAuthenticatedUser(ctx: MutationCtx | QueryCtx) {
         throw new Error("User not found");
     }
 
-    return user;
+	return user;
+}
+
+function normalizeOptions(options?: string[]) {
+	if (!options) return [];
+
+	const cleaned = options
+		.map((option) => option.trim())
+		.filter((option) => option.length > 0);
+
+	const seen = new Set<string>();
+	const uniqueOptions: string[] = [];
+
+	for (const option of cleaned) {
+		const key = option.toLowerCase();
+		if (!seen.has(key)) {
+			seen.add(key);
+			uniqueOptions.push(option);
+		}
+	}
+
+	return uniqueOptions;
 }
 
 /**
@@ -261,25 +282,50 @@ export const addRubricItem = mutation({
         // Validate config based on evaluation type
         const config = args.config ?? {};
 
-        // For range type, validate min/max and require rangeGuidance
-        if (args.evaluationType === "range") {
-            if (config.minValue !== undefined && config.maxValue !== undefined) {
-                if (config.minValue >= config.maxValue) {
-                    throw new Error("Range minValue must be less than maxValue");
-                }
-            }
+		// For range type, validate min/max and require rangeGuidance
+		if (args.evaluationType === "range") {
+			if (config.minValue !== undefined && config.maxValue !== undefined) {
+				if (config.minValue >= config.maxValue) {
+					throw new Error("Range minValue must be less than maxValue");
+				}
+			}
             // Require rangeGuidance for range type items
             if (!config.rangeGuidance || config.rangeGuidance.trim().length === 0) {
                 throw new Error(
                     "Range evaluation type requires guidance text describing when each score level should be selected",
                 );
-            }
-        }
+			}
+		}
 
-        const itemId = await ctx.db.insert("rubricItems", {
-            rubricId: args.rubricId,
-            name: args.name.trim(),
-            description: args.description.trim(),
+		if (args.evaluationType === "options") {
+			const normalizedOptions = normalizeOptions(config.options);
+			if (normalizedOptions.length === 0) {
+				throw new Error("Options evaluation type requires at least one option");
+			}
+
+			if (config.maxSelections !== undefined) {
+				if (!config.allowMultiple) {
+					throw new Error(
+						"Options evaluation type requires allowMultiple to set maxSelections",
+					);
+				}
+				if (config.maxSelections < 1) {
+					throw new Error("Options maxSelections must be at least 1");
+				}
+				if (config.maxSelections > normalizedOptions.length) {
+					throw new Error(
+						"Options maxSelections cannot exceed the number of options",
+					);
+				}
+			}
+
+			config.options = normalizedOptions;
+		}
+
+		const itemId = await ctx.db.insert("rubricItems", {
+			rubricId: args.rubricId,
+			name: args.name.trim(),
+			description: args.description.trim(),
             evaluationType: args.evaluationType,
             config,
             order,
@@ -336,18 +382,21 @@ export const updateRubricItem = mutation({
         }
 
         // Build updates
-        const updates: {
-            name?: string;
-            description?: string;
-            evaluationType?: "yes_no" | "range" | "comments" | "code_examples";
-            config?: {
-                requireJustification?: boolean;
-                minValue?: number;
-                maxValue?: number;
-                rangeGuidance?: string;
-                maxExamples?: number;
-            };
-        } = {};
+		const updates: {
+			name?: string;
+			description?: string;
+			evaluationType?: "yes_no" | "range" | "comments" | "code_examples" | "options";
+			config?: {
+				requireJustification?: boolean;
+				minValue?: number;
+				maxValue?: number;
+				rangeGuidance?: string;
+				maxExamples?: number;
+				options?: string[];
+				allowMultiple?: boolean;
+				maxSelections?: number;
+			};
+		} = {};
 
         if (args.name !== undefined) {
             updates.name = args.name.trim();
@@ -358,10 +407,10 @@ export const updateRubricItem = mutation({
         if (args.evaluationType !== undefined) {
             updates.evaluationType = args.evaluationType;
         }
-        if (args.config !== undefined) {
-            // Validate range config
-            const evalType = args.evaluationType ?? item.evaluationType;
-            if (evalType === "range") {
+		if (args.config !== undefined) {
+			// Validate range config
+			const evalType = args.evaluationType ?? item.evaluationType;
+			if (evalType === "range") {
                 if (
                     args.config.minValue !== undefined &&
                     args.config.maxValue !== undefined
@@ -377,11 +426,51 @@ export const updateRubricItem = mutation({
                 ) {
                     throw new Error(
                         "Range evaluation type requires guidance text describing when each score level should be selected",
-                    );
-                }
-            }
-            updates.config = args.config;
-        }
+					);
+				}
+			}
+			if (evalType === "options") {
+				const normalizedOptions = normalizeOptions(args.config.options);
+				if (normalizedOptions.length === 0) {
+					throw new Error(
+						"Options evaluation type requires at least one option",
+					);
+				}
+
+				if (args.config.maxSelections !== undefined) {
+					if (!args.config.allowMultiple) {
+						throw new Error(
+							"Options evaluation type requires allowMultiple to set maxSelections",
+						);
+					}
+					if (args.config.maxSelections < 1) {
+						throw new Error("Options maxSelections must be at least 1");
+					}
+					if (args.config.maxSelections > normalizedOptions.length) {
+						throw new Error(
+							"Options maxSelections cannot exceed the number of options",
+						);
+					}
+				}
+
+				updates.config = { ...args.config, options: normalizedOptions };
+			} else {
+				updates.config = args.config;
+			}
+		}
+		if (
+			args.config === undefined &&
+			(args.evaluationType ?? item.evaluationType) === "options"
+		) {
+			const existingOptions = normalizeOptions(
+				(item.config as { options?: string[] } | undefined)?.options,
+			);
+			if (existingOptions.length === 0) {
+				throw new Error(
+					"Options evaluation type requires at least one option",
+				);
+			}
+		}
 
         await ctx.db.patch(args.itemId, updates);
 
@@ -511,13 +600,16 @@ async function upsertSystemTemplates(
         items: {
             name: string;
             description: string;
-            evaluationType: "yes_no" | "range" | "comments" | "code_examples";
+            evaluationType: "yes_no" | "range" | "comments" | "code_examples" | "options";
             config: {
                 requireJustification?: boolean;
                 minValue?: number;
                 maxValue?: number;
                 rangeGuidance?: string;
                 maxExamples?: number;
+                options?: string[];
+                allowMultiple?: boolean;
+                maxSelections?: number;
             };
         }[];
     }[],

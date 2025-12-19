@@ -23,7 +23,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { EvaluationTypeConfig } from "./evaluation-type-config";
 
-type EvaluationType = "yes_no" | "range" | "comments" | "code_examples";
+type EvaluationType =
+	| "yes_no"
+	| "range"
+	| "comments"
+	| "code_examples"
+	| "options";
 
 interface RubricItemConfig {
 	requireJustification?: boolean;
@@ -31,6 +36,9 @@ interface RubricItemConfig {
 	maxValue?: number;
 	rangeGuidance?: string;
 	maxExamples?: number;
+	options?: string[];
+	allowMultiple?: boolean;
+	maxSelections?: number;
 }
 
 interface RubricItemFormProps {
@@ -58,7 +66,13 @@ const formSchema = z.object({
 		.string()
 		.min(1, "Description is required")
 		.max(500, "Description must be at most 500 characters"),
-	evaluationType: z.enum(["yes_no", "range", "comments", "code_examples"]),
+	evaluationType: z.enum([
+		"yes_no",
+		"range",
+		"comments",
+		"code_examples",
+		"options",
+	]),
 	config: z
 		.object({
 			requireJustification: z.boolean().optional(),
@@ -66,6 +80,9 @@ const formSchema = z.object({
 			maxValue: z.number().optional(),
 			rangeGuidance: z.string().optional(),
 			maxExamples: z.number().optional(),
+			options: z.array(z.string()).optional(),
+			allowMultiple: z.boolean().optional(),
+			maxSelections: z.number().optional(),
 		})
 		.refine(
 			(data) => {
@@ -84,6 +101,42 @@ const formSchema = z.object({
 				message: "Score guidance is required for range evaluation type",
 				path: ["config", "rangeGuidance"],
 			});
+		}
+	}
+	if (data.evaluationType === "options") {
+		const options = (data.config.options ?? []).filter(
+			(option) => option.trim().length > 0,
+		);
+		if (options.length === 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "At least one option is required",
+				path: ["config", "options"],
+			});
+		}
+		if (data.config.maxSelections !== undefined) {
+			if (!data.config.allowMultiple) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Enable multiple selections to set a maximum",
+					path: ["config", "allowMultiple"],
+				});
+			} else if (data.config.maxSelections < 1) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Maximum selections must be at least 1",
+					path: ["config", "maxSelections"],
+				});
+			} else if (
+				options.length > 0 &&
+				data.config.maxSelections > options.length
+			) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Maximum selections cannot exceed the number of options",
+					path: ["config", "maxSelections"],
+				});
+			}
 		}
 	}
 });
@@ -209,6 +262,7 @@ export function RubricItemForm({
 										<SelectItem value="range">Range (Score)</SelectItem>
 										<SelectItem value="comments">Comments</SelectItem>
 										<SelectItem value="code_examples">Code Examples</SelectItem>
+										<SelectItem value="options">Options</SelectItem>
 									</SelectContent>
 								</Select>
 								{isInvalid && <FieldError errors={field.state.meta.errors} />}

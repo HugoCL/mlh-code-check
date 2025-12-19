@@ -32,22 +32,30 @@ interface CodeExample {
 }
 
 interface CodeExamplesResult {
-    examples: CodeExample[];
+	examples: CodeExample[];
+}
+
+interface OptionsResult {
+	selections: string[];
 }
 
 type EvaluationResult =
-    | YesNoResult
-    | RangeResult
-    | CommentsResult
-    | CodeExamplesResult;
+	| YesNoResult
+	| RangeResult
+	| CommentsResult
+	| CodeExamplesResult
+	| OptionsResult;
 
 // Rubric item config type
 interface RubricItemConfig {
-    requireJustification?: boolean;
-    minValue?: number;
-    maxValue?: number;
-    rangeGuidance?: string;
-    maxExamples?: number;
+	requireJustification?: boolean;
+	minValue?: number;
+	maxValue?: number;
+	rangeGuidance?: string;
+	maxExamples?: number;
+	options?: string[];
+	allowMultiple?: boolean;
+	maxSelections?: number;
 }
 
 // Types for the analysis workflow
@@ -63,13 +71,13 @@ interface AnalysisJobPayload {
 }
 
 interface RubricItemPayload {
-    analysisId: string;
-    itemId: string;
-    itemName: string;
-    itemDescription: string;
-    evaluationType: "yes_no" | "range" | "comments" | "code_examples";
-    config: RubricItemConfig;
-    repositoryContent: RepositoryContent;
+	analysisId: string;
+	itemId: string;
+	itemName: string;
+	itemDescription: string;
+	evaluationType: "yes_no" | "range" | "comments" | "code_examples" | "options";
+	config: RubricItemConfig;
+	repositoryContent: RepositoryContent;
 }
 
 interface RepositoryContent {
@@ -274,7 +282,11 @@ export const evaluateRubricItem = task({
             const prompt = constructPrompt(payload);
 
             // Call AI model
-            const result = await evaluateWithAI(prompt, payload.evaluationType);
+			const result = await evaluateWithAI(
+				prompt,
+				payload.evaluationType,
+				payload.config,
+			);
 
             // Update item result
             await convex.mutation(api.analyses.updateItemResult, {
@@ -710,7 +722,7 @@ Name: ${itemName}
 Description: ${itemDescription}
 	`.trim();
 
-    switch (evaluationType) {
+	switch (evaluationType) {
         case "yes_no":
             return `${basePrompt}
 
@@ -762,8 +774,8 @@ Please provide detailed feedback about this repository. Respond with a JSON obje
 Example response:
 {"feedback": "The repository shows good structure but could benefit from..."}`;
 
-        case "code_examples":
-            return `${basePrompt}
+		case "code_examples":
+			return `${basePrompt}
 
 Please identify specific code examples that relate to the evaluation criteria. Respond with a JSON object containing:
 - "examples": array of objects, each with:
@@ -776,17 +788,52 @@ Please identify specific code examples that relate to the evaluation criteria. R
 Example response:
 {"examples": [{"filePath": "src/main.ts", "lineStart": 1, "lineEnd": 3, "code": "console.log('Hello');", "explanation": "This demonstrates..."}]}`;
 
-        default:
-            throw new Error(`Unknown evaluation type: ${evaluationType}`);
-    }
+		case "options": {
+			const config = payload.config || {};
+			const options = config.options ?? [];
+			const allowMultiple = config.allowMultiple ?? false;
+			const maxSelections = config.maxSelections;
+
+			const optionList = options.length
+				? options.map((option) => `- ${option}`).join("\n")
+				: "- (no options provided)";
+
+			const selectionGuidance = allowMultiple
+				? "Select one or more options if necessary, but keep the selection minimal."
+				: "Select exactly one option.";
+
+			const maxGuidance =
+				allowMultiple && maxSelections
+					? `Select at most ${maxSelections} option${maxSelections === 1 ? "" : "s"}.`
+					: "";
+
+			return `${basePrompt}
+
+Options:
+${optionList}
+
+${selectionGuidance}
+${maxGuidance}
+
+Respond with a JSON object containing:
+- "selections": array of strings (each must match one of the options exactly)
+
+Example response:
+{"selections": ["TypeScript"]}`;
+		}
+
+		default:
+			throw new Error(`Unknown evaluation type: ${evaluationType}`);
+	}
 }
 
 // Helper function to evaluate with AI
 async function evaluateWithAI(
-    prompt: string,
-    evaluationType: "yes_no" | "range" | "comments" | "code_examples",
+	prompt: string,
+	evaluationType: "yes_no" | "range" | "comments" | "code_examples" | "options",
+	config?: RubricItemConfig,
 ): Promise<EvaluationResult> {
-    const model = "google/gemini-2.5-flash";
+	const model = "google/gemini-2.5-flash";
 
     switch (evaluationType) {
         case "yes_no": {
@@ -835,9 +882,9 @@ async function evaluateWithAI(
             return result.object;
         }
 
-        case "code_examples": {
-            const schema = z.object({
-                examples: z.array(
+		case "code_examples": {
+			const schema = z.object({
+				examples: z.array(
                     z.object({
                         filePath: z.string(),
                         lineStart: z.number(),
@@ -854,7 +901,46 @@ async function evaluateWithAI(
                 schema,
             });
 
-            return result.object;
-        }
-    }
+			return result.object;
+		}
+
+		case "options": {
+			const allowMultiple = config?.allowMultiple ?? false;
+			const maxSelections = config?.maxSelections;
+			const options =
+				config?.options?.map((option) => option.toLowerCase()) ?? [];
+
+			let selectionsSchema = z.array(z.string()).min(1);
+
+			if (!allowMultiple) {
+				selectionsSchema = selectionsSchema.max(1);
+			} else if (maxSelections !== undefined) {
+				selectionsSchema = selectionsSchema.max(maxSelections);
+			}
+
+			if (options.length > 0) {
+				selectionsSchema = selectionsSchema.refine(
+					(selections) =>
+						selections.every((selection) =>
+							options.includes(selection.toLowerCase()),
+						),
+					{
+						message: "Selections must be from the provided options list",
+					},
+				);
+			}
+
+			const schema = z.object({
+				selections: selectionsSchema,
+			});
+
+			const result = await generateObject({
+				model,
+				prompt,
+				schema,
+			});
+
+			return result.object;
+		}
+	}
 }

@@ -254,6 +254,13 @@ export default function NewAnalysisPage() {
 
 function RubricPreview({ rubricId }: { rubricId: Id<"rubrics"> }) {
 	const rubric = useQuery(api.rubrics.getRubric, { rubricId });
+	const evaluationTypeLabels: Record<string, string> = {
+		yes_no: "Yes/No",
+		range: "Range",
+		comments: "Comments",
+		code_examples: "Code Examples",
+		options: "Options",
+	};
 
 	if (!rubric) {
 		return (
@@ -282,7 +289,8 @@ function RubricPreview({ rubricId }: { rubricId: Id<"rubrics"> }) {
 								<span className="size-1.5 rounded-full bg-primary" />
 								<span className="truncate">{item.name}</span>
 								<Badge variant="outline" className="text-[10px] px-1">
-									{item.evaluationType.replace("_", "/")}
+									{evaluationTypeLabels[item.evaluationType] ??
+										item.evaluationType}
 								</Badge>
 							</li>
 						))}

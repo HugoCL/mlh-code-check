@@ -319,7 +319,10 @@ describe("Property 3: Rubric item validation", () => {
         "range",
         "comments",
         "code_examples",
-    ) as fc.Arbitrary<"yes_no" | "range" | "comments" | "code_examples">;
+        "options",
+    ) as fc.Arbitrary<
+        "yes_no" | "range" | "comments" | "code_examples" | "options"
+    >;
 
     // Arbitrary for valid rubric item data (excluding range type which requires rangeGuidance)
     const nonRangeEvaluationTypeArbitrary = fc.constantFrom(

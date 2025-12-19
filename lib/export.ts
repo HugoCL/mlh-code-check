@@ -184,6 +184,19 @@ export function exportAsMarkdown(analysis: ExportableAnalysis): string {
 				}
 				break;
 			}
+			case "options": {
+				const selections = res.selections as string[];
+				lines.push("**Selections:**");
+				lines.push("");
+				if (selections.length === 0) {
+					lines.push("(none)");
+				} else {
+					for (const selection of selections) {
+						lines.push(`- ${selection}`);
+					}
+				}
+				break;
+			}
 			default:
 				lines.push("**Result:** (unknown format)");
 				lines.push("");

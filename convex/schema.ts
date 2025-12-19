@@ -7,6 +7,7 @@ export const evaluationTypeValidator = v.union(
     v.literal("range"),
     v.literal("comments"),
     v.literal("code_examples"),
+    v.literal("options"),
 );
 
 // Rubric item config validator
@@ -16,6 +17,9 @@ export const rubricItemConfigValidator = v.object({
     maxValue: v.optional(v.number()),
     rangeGuidance: v.optional(v.string()), // Required for range type: describes when each score level should be selected
     maxExamples: v.optional(v.number()),
+    options: v.optional(v.array(v.string())),
+    allowMultiple: v.optional(v.boolean()),
+    maxSelections: v.optional(v.number()),
 });
 
 export default defineSchema({

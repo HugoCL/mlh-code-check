@@ -7,6 +7,10 @@ export {
 	type CommentsResult,
 	CommentsResultCard,
 } from "./comments-result-card";
+export {
+	type OptionsResult,
+	OptionsResultCard,
+} from "./options-result-card";
 export { type RangeResult, RangeResultCard } from "./range-result-card";
 export {
 	type Analysis,

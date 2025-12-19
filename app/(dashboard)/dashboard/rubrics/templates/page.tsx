@@ -239,6 +239,14 @@ function TemplateViewDialog({
 		}
 	};
 
+	const evaluationTypeLabels: Record<string, string> = {
+		yes_no: "Yes/No",
+		range: "Range",
+		comments: "Comments",
+		code_examples: "Code Examples",
+		options: "Options",
+	};
+
 	return (
 		<Dialog
 			open={templateId !== null}
@@ -278,7 +286,8 @@ function TemplateViewDialog({
 											<span className="font-medium">{item.name}</span>
 										</div>
 										<Badge variant="outline" className="shrink-0">
-											{item.evaluationType.replace("_", "/")}
+											{evaluationTypeLabels[item.evaluationType] ??
+												item.evaluationType}
 										</Badge>
 									</div>
 									<p className="text-sm text-muted-foreground">
@@ -306,6 +315,20 @@ function TemplateViewDialog({
 										item.config?.maxExamples && (
 											<div className="text-xs text-muted-foreground">
 												Max examples: {item.config.maxExamples}
+											</div>
+										)}
+									{item.evaluationType === "options" &&
+										item.config?.options && (
+											<div className="text-xs text-muted-foreground">
+												Options:{" "}
+												{item.config.options.slice(0, 4).join(", ")}
+												{item.config.options.length > 4
+													? ` +${item.config.options.length - 4} more`
+													: ""}
+												{item.config.allowMultiple ? " (multi-select)" : ""}
+												{item.config.maxSelections
+													? `, max ${item.config.maxSelections}`
+													: ""}
 											</div>
 										)}
 								</div>

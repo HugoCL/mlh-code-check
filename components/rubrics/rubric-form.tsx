@@ -98,13 +98,21 @@ export function RubricForm({
 	const handleAddItem = async (itemData: {
 		name: string;
 		description: string;
-		evaluationType: "yes_no" | "range" | "comments" | "code_examples";
+		evaluationType:
+			| "yes_no"
+			| "range"
+			| "comments"
+			| "code_examples"
+			| "options";
 		config?: {
 			requireJustification?: boolean;
 			minValue?: number;
 			maxValue?: number;
 			rangeGuidance?: string;
 			maxExamples?: number;
+			options?: string[];
+			allowMultiple?: boolean;
+			maxSelections?: number;
 		};
 	}) => {
 		if (!rubricId) return;
@@ -273,13 +281,21 @@ function RubricItemCard({
 		_id: Id<"rubricItems">;
 		name: string;
 		description: string;
-		evaluationType: "yes_no" | "range" | "comments" | "code_examples";
+		evaluationType:
+			| "yes_no"
+			| "range"
+			| "comments"
+			| "code_examples"
+			| "options";
 		config: {
 			requireJustification?: boolean;
 			minValue?: number;
 			maxValue?: number;
 			rangeGuidance?: string;
 			maxExamples?: number;
+			options?: string[];
+			allowMultiple?: boolean;
+			maxSelections?: number;
 		};
 		order: number;
 	};
@@ -304,6 +320,7 @@ function RubricItemCard({
 		range: "Range",
 		comments: "Comments",
 		code_examples: "Code Examples",
+		options: "Options",
 	};
 
 	return (
@@ -326,6 +343,15 @@ function RubricItemCard({
 				{item.evaluationType === "range" && item.config.rangeGuidance && (
 					<p className="text-muted-foreground text-xs whitespace-pre-line">
 						Guidance: {item.config.rangeGuidance}
+					</p>
+				)}
+				{item.evaluationType === "options" && item.config.options && (
+					<p className="text-muted-foreground text-xs">
+						Options: {item.config.options.length}
+						{item.config.allowMultiple ? " (multi-select)" : ""}
+						{item.config.maxSelections
+							? `, max ${item.config.maxSelections}`
+							: ""}
 					</p>
 				)}
 			</div>

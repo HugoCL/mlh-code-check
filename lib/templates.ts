@@ -1,7 +1,12 @@
 /**
  * TypeScript types matching the Convex schema validators
  */
-export type EvaluationType = "yes_no" | "range" | "comments" | "code_examples";
+export type EvaluationType =
+	| "yes_no"
+	| "range"
+	| "comments"
+	| "code_examples"
+	| "options";
 
 export type RubricItemConfig = {
 	requireJustification?: boolean;
@@ -9,6 +14,9 @@ export type RubricItemConfig = {
 	maxValue?: number;
 	rangeGuidance?: string;
 	maxExamples?: number;
+	options?: string[];
+	allowMultiple?: boolean;
+	maxSelections?: number;
 };
 
 /**
@@ -46,8 +54,18 @@ export const SYSTEM_TEMPLATES: SystemTemplateConfig[] = [
 				name: "Primary Language",
 				description:
 					"Identify the primary programming language used in the code sample. Options: JavaScript, TypeScript, Python, Java, C++, or Other.",
-				evaluationType: "comments",
-				config: {},
+				evaluationType: "options",
+				config: {
+					options: [
+						"JavaScript",
+						"TypeScript",
+						"Python",
+						"Java",
+						"C++",
+						"Other",
+					],
+					allowMultiple: true,
+				},
 			},
 			{
 				name: "Project Structure & Navigation",

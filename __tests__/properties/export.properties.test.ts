@@ -12,6 +12,7 @@ const evaluationTypeArbitrary = fc.constantFrom(
 	"range",
 	"comments",
 	"code_examples",
+	"options",
 );
 
 // Arbitrary for generating yes/no results
@@ -52,6 +53,13 @@ const codeExamplesResultArbitrary = fc.record({
 	examples: fc.array(codeExampleArbitrary, { minLength: 0, maxLength: 3 }),
 });
 
+const optionsResultArbitrary = fc.record({
+	selections: fc.array(fc.string({ minLength: 1, maxLength: 50 }), {
+		minLength: 0,
+		maxLength: 5,
+	}),
+});
+
 // Generate result based on evaluation type
 function generateResultForType(evalType: string): fc.Arbitrary<unknown> {
 	switch (evalType) {
@@ -63,6 +71,8 @@ function generateResultForType(evalType: string): fc.Arbitrary<unknown> {
 			return commentsResultArbitrary;
 		case "code_examples":
 			return codeExamplesResultArbitrary;
+		case "options":
+			return optionsResultArbitrary;
 		default:
 			return fc.constant(null);
 	}

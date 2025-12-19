@@ -1,11 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatOptionList, parseOptionList } from "@/lib/utils";
 
-type EvaluationType = "yes_no" | "range" | "comments" | "code_examples";
+type EvaluationType =
+	| "yes_no"
+	| "range"
+	| "comments"
+	| "code_examples"
+	| "options";
 
 interface RubricItemConfig {
 	requireJustification?: boolean;
@@ -13,6 +20,9 @@ interface RubricItemConfig {
 	maxValue?: number;
 	rangeGuidance?: string;
 	maxExamples?: number;
+	options?: string[];
+	allowMultiple?: boolean;
+	maxSelections?: number;
 }
 
 interface EvaluationTypeConfigProps {
@@ -40,6 +50,10 @@ export function EvaluationTypeConfig({
 					config={config}
 					onChange={onChange}
 				/>
+			);
+		case "options":
+			return (
+				<OptionsConfig key="options" config={config} onChange={onChange} />
 			);
 		default:
 			return null;
@@ -182,5 +196,107 @@ function CodeExamplesConfig({
 				max={20}
 			/>
 		</Field>
+	);
+}
+
+function OptionsConfig({
+	config,
+	onChange,
+}: {
+	config: RubricItemConfig;
+	onChange: (config: RubricItemConfig) => void;
+}) {
+	const [optionsText, setOptionsText] = useState(() =>
+		formatOptionList(config.options),
+	);
+
+	useEffect(() => {
+		setOptionsText(formatOptionList(config.options));
+	}, [config.options]);
+
+	const options = config.options ?? [];
+	const allowMultiple = config.allowMultiple ?? false;
+
+	return (
+		<div className="space-y-4">
+			<Field>
+				<FieldLabel htmlFor="options-list">
+					Options <span className="text-destructive">*</span>
+				</FieldLabel>
+				<FieldDescription>
+					Enter one option per line (commas are also supported).
+				</FieldDescription>
+				<Textarea
+					id="options-list"
+					value={optionsText}
+					onChange={(e) => {
+						const value = e.target.value;
+						setOptionsText(value);
+						onChange({
+							...config,
+							options: parseOptionList(value),
+						});
+					}}
+					placeholder="JavaScript&#10;TypeScript&#10;Python&#10;Other"
+					rows={4}
+					className={
+						options.length === 0 ? "border-destructive" : ""
+					}
+				/>
+				{options.length === 0 && (
+					<p className="text-destructive text-sm">
+						At least one option is required
+					</p>
+				)}
+			</Field>
+
+			<Field orientation="horizontal">
+				<Checkbox
+					id="allow-multiple"
+					checked={allowMultiple}
+					onCheckedChange={(checked) => {
+						onChange({
+							...config,
+							allowMultiple: checked === true,
+							maxSelections:
+								checked === true ? config.maxSelections : undefined,
+						});
+					}}
+				/>
+				<FieldLabel htmlFor="allow-multiple">
+					Allow multiple selections
+				</FieldLabel>
+				<FieldDescription>
+					Let the AI choose more than one option if needed
+				</FieldDescription>
+			</Field>
+
+			{allowMultiple && (
+				<Field>
+					<FieldLabel htmlFor="max-selections">
+						Maximum Selections
+					</FieldLabel>
+					<FieldDescription>
+						Optional cap on how many options can be selected
+					</FieldDescription>
+					<Input
+						id="max-selections"
+						type="number"
+						value={config.maxSelections?.toString() ?? ""}
+						onChange={(e) =>
+							onChange({
+								...config,
+								maxSelections: e.target.value
+									? Number(e.target.value)
+									: undefined,
+							})
+						}
+						placeholder="2"
+						min={1}
+						max={options.length || undefined}
+					/>
+				</Field>
+			)}
+		</div>
 	);
 }
