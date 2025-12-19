@@ -13,6 +13,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export interface YesNoResult {
 	value: boolean;
@@ -46,9 +48,13 @@ export function YesNoResultCard({
 				<CardDescription>{itemDescription}</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<div className="text-muted-foreground text-sm">
+				<div className="text-sm">
 					<p className="font-medium text-foreground mb-1">Justification</p>
-					<p>{result.justification}</p>
+					<div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+						<ReactMarkdown remarkPlugins={[remarkGfm]}>
+							{result.justification}
+						</ReactMarkdown>
+					</div>
 				</div>
 			</CardContent>
 		</Card>

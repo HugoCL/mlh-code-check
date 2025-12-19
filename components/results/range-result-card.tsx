@@ -9,6 +9,8 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export interface RangeResult {
 	value: number;
@@ -79,9 +81,13 @@ export function RangeResultCard({
 						/>
 					</div>
 				</div>
-				<div className="text-muted-foreground text-sm">
+				<div className="text-sm">
 					<p className="font-medium text-foreground mb-1">Rationale</p>
-					<p>{result.rationale}</p>
+					<div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+						<ReactMarkdown remarkPlugins={[remarkGfm]}>
+							{result.rationale}
+						</ReactMarkdown>
+					</div>
 				</div>
 			</CardContent>
 		</Card>

@@ -4,6 +4,8 @@ import { File01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import {
 	Card,
@@ -143,9 +145,11 @@ export function CodeExamplesResultCard({
 								{example.code}
 							</SyntaxHighlighter>
 						</div>
-						<p className="text-sm text-muted-foreground">
-							{example.explanation}
-						</p>
+						<div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+							<ReactMarkdown remarkPlugins={[remarkGfm]}>
+								{example.explanation}
+							</ReactMarkdown>
+						</div>
 						{index < result.examples.length - 1 && (
 							<div className="border-t my-4" />
 						)}
