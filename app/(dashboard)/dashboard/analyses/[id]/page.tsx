@@ -104,6 +104,16 @@ export default function AnalysisResultsPage() {
 	}
 
 	// Transform analysis data for ResultsView
+	const repositoryOwner =
+		analysis.repository?.owner ?? analysis.repositoryOwner ?? "";
+	const repositoryName =
+		analysis.repository?.name ?? analysis.repositoryName ?? "";
+	const repositoryFullName =
+		analysis.repository?.fullName ??
+		(repositoryOwner && repositoryName
+			? `${repositoryOwner}/${repositoryName}`
+			: undefined);
+
 	const analysisForView = {
 		_id: analysis._id,
 		status: analysis.status,
@@ -112,9 +122,15 @@ export default function AnalysisResultsPage() {
 		failedItems: analysis.failedItems,
 		createdAt: analysis.createdAt,
 		completedAt: analysis.completedAt,
-		repository: analysis.repository
-			? { fullName: analysis.repository.fullName }
-			: undefined,
+		repository:
+			repositoryFullName && repositoryOwner && repositoryName
+				? {
+						fullName: repositoryFullName,
+						owner: repositoryOwner,
+						name: repositoryName,
+						branch: analysis.branch,
+					}
+				: undefined,
 		rubric: analysis.rubric ? { name: analysis.rubric.name } : undefined,
 		results: analysis.results.map((result) => ({
 			_id: result._id,

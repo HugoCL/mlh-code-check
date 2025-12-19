@@ -288,18 +288,29 @@ export const evaluateRubricItem = task({
 				payload.config,
 			);
 
+			const normalizedResult =
+				payload.evaluationType === "code_examples"
+					? {
+							...result,
+							examples: alignCodeExamples(
+								(result as CodeExamplesResult).examples ?? [],
+								payload.repositoryContent,
+							),
+						}
+					: result;
+
             // Update item result
             await convex.mutation(api.analyses.updateItemResult, {
                 analysisId: payload.analysisId as Id<"analyses">,
                 rubricItemId: payload.itemId as Id<"rubricItems">,
                 status: "completed",
-                result,
+				result: normalizedResult,
             });
 
             return {
                 itemId: payload.itemId,
                 status: "completed" as const,
-                result,
+				result: normalizedResult,
             };
         } catch (error) {
             // Update item as failed
@@ -943,4 +954,115 @@ async function evaluateWithAI(
 			return result.object;
 		}
 	}
+}
+
+function alignCodeExamples(
+	examples: CodeExample[],
+	repositoryContent: RepositoryContent,
+): CodeExample[] {
+	const fileMap = new Map<string, string>();
+	for (const file of repositoryContent.files) {
+		fileMap.set(file.path, normalizeLineEndings(file.content));
+	}
+
+	return examples.map((example) => {
+		const content = fileMap.get(example.filePath);
+		if (!content) {
+			return example;
+		}
+
+		const fileLines = content.split("\n");
+		const normalizedSnippet = normalizeSnippet(example.code);
+		const snippetLines = normalizedSnippet.lines;
+
+		if (snippetLines.length === 0) {
+			return { ...example, code: normalizedSnippet.code };
+		}
+
+		const startIndex = findSnippetStartIndex(
+			fileLines,
+			snippetLines,
+			example.lineStart,
+		);
+
+		if (startIndex === -1) {
+			return { ...example, code: normalizedSnippet.code };
+		}
+
+		return {
+			...example,
+			code: normalizedSnippet.code,
+			lineStart: startIndex + 1,
+			lineEnd: startIndex + snippetLines.length,
+		};
+	});
+}
+
+function normalizeSnippet(code: string): { code: string; lines: string[] } {
+	const normalized = normalizeLineEndings(code);
+	const lines = normalized.split("\n");
+
+	while (lines.length > 0 && lines[0].trim() === "") {
+		lines.shift();
+	}
+
+	while (lines.length > 0 && lines[lines.length - 1].trim() === "") {
+		lines.pop();
+	}
+
+	return {
+		code: lines.join("\n"),
+		lines,
+	};
+}
+
+function normalizeLineEndings(value: string): string {
+	return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+function findSnippetStartIndex(
+	fileLines: string[],
+	snippetLines: string[],
+	preferredLineStart?: number,
+): number {
+	const comparators = [
+		(a: string, b: string) => a === b,
+		(a: string, b: string) => a.trimEnd() === b.trimEnd(),
+		(a: string, b: string) => a.trim() === b.trim(),
+	];
+
+	for (const comparator of comparators) {
+		let bestIndex = -1;
+		let bestDistance = Number.POSITIVE_INFINITY;
+
+		for (let i = 0; i <= fileLines.length - snippetLines.length; i += 1) {
+			let matches = true;
+			for (let j = 0; j < snippetLines.length; j += 1) {
+				if (!comparator(fileLines[i + j], snippetLines[j])) {
+					matches = false;
+					break;
+				}
+			}
+
+			if (!matches) {
+				continue;
+			}
+
+			if (!preferredLineStart || preferredLineStart <= 0) {
+				return i;
+			}
+
+			const distance = Math.abs(i + 1 - preferredLineStart);
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				bestIndex = i;
+			}
+		}
+
+		if (bestIndex !== -1) {
+			return bestIndex;
+		}
+	}
+
+	return -1;
 }

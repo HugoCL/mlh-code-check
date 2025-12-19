@@ -9,6 +9,15 @@ export interface ParsedGitHubUrl {
     branch?: string;
 }
 
+export interface GitHubFileUrlArgs {
+    owner: string;
+    repo: string;
+    branch: string;
+    filePath: string;
+    lineStart?: number;
+    lineEnd?: number;
+}
+
 export interface GitHubUrlParseSuccess {
     success: true;
     data: ParsedGitHubUrl;
@@ -186,6 +195,32 @@ export function constructGitHubUrl(data: ParsedGitHubUrl): string {
 }
 
 /**
+ * Constructs a GitHub file URL with optional line range anchors.
+ */
+export function constructGitHubFileUrl({
+    owner,
+    repo,
+    branch,
+    filePath,
+    lineStart,
+    lineEnd,
+}: GitHubFileUrlArgs): string {
+    const encodedBranch = encodePathSegments(branch);
+    const encodedPath = encodePathSegments(filePath);
+    const baseUrl = `https://github.com/${owner}/${repo}/blob/${encodedBranch}/${encodedPath}`;
+
+    if (lineStart && lineEnd && lineEnd !== lineStart) {
+        return `${baseUrl}#L${lineStart}-L${lineEnd}`;
+    }
+
+    if (lineStart) {
+        return `${baseUrl}#L${lineStart}`;
+    }
+
+    return baseUrl;
+}
+
+/**
  * Checks if a URL is a valid GitHub repository URL without parsing details.
  *
  * @param url - The URL to check
@@ -193,4 +228,12 @@ export function constructGitHubUrl(data: ParsedGitHubUrl): string {
  */
 export function isGitHubUrl(url: string): boolean {
     return parseGitHubUrl(url).success;
+}
+
+function encodePathSegments(path: string): string {
+    return path
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment))
+        .join("/");
 }

@@ -12,6 +12,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { constructGitHubFileUrl } from "@/lib/github-url";
 
 export interface CodeExample {
 	filePath: string;
@@ -29,6 +30,11 @@ interface CodeExamplesResultCardProps {
 	itemName: string;
 	itemDescription: string;
 	result: CodeExamplesResult;
+	repository?: {
+		owner: string;
+		name: string;
+		branch: string;
+	};
 }
 
 function getLanguageFromPath(filePath: string): string {
@@ -69,7 +75,11 @@ export function CodeExamplesResultCard({
 	itemName,
 	itemDescription,
 	result,
+	repository,
 }: CodeExamplesResultCardProps) {
+	const hasRepository =
+		!!repository?.owner && !!repository?.name && !!repository?.branch;
+
 	return (
 		<Card>
 			<CardHeader>
@@ -93,9 +103,27 @@ export function CodeExamplesResultCard({
 								icon={File01Icon}
 								className="size-4 text-muted-foreground"
 							/>
-							<span className="font-mono text-muted-foreground">
-								{example.filePath}
-							</span>
+							{hasRepository ? (
+								<a
+									href={constructGitHubFileUrl({
+										owner: repository!.owner,
+										repo: repository!.name,
+										branch: repository!.branch,
+										filePath: example.filePath,
+										lineStart: example.lineStart,
+										lineEnd: example.lineEnd,
+									})}
+									target="_blank"
+									rel="noreferrer"
+									className="font-mono text-muted-foreground hover:text-foreground hover:underline"
+								>
+									{example.filePath}
+								</a>
+							) : (
+								<span className="font-mono text-muted-foreground">
+									{example.filePath}
+								</span>
+							)}
 							<Badge variant="outline" className="text-xs">
 								L{example.lineStart}-{example.lineEnd}
 							</Badge>

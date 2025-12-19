@@ -78,6 +78,9 @@ export interface Analysis {
 	completedAt?: number;
 	repository?: {
 		fullName: string;
+		owner: string;
+		name: string;
+		branch: string;
 	};
 	rubric?: {
 		name: string;
@@ -220,6 +223,7 @@ export function ResultsView({ analysis }: ResultsViewProps) {
 									itemName={item.name}
 									itemDescription={item.description}
 									result={evaluationResult as CodeExamplesResult}
+									repository={analysis.repository}
 								/>
 							);
 						case "options":
