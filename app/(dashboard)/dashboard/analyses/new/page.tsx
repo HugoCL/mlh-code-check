@@ -38,12 +38,12 @@ interface OneOffData extends ParsedGitHubUrl {
 export default function NewAnalysisPage() {
 	const router = useRouter();
 	const [analysisMode, setAnalysisMode] = useState<"connected" | "one-off">(
-		"connected",
+		"one-off",
 	);
 	const [selectedRepository, setSelectedRepository] = useState<string | null>(
 		null,
 	);
-	const [oneOffData, setOneOffData] = useState<OneOffData | null>(null);
+	const [oneOffData, setOneOffData] = useState<OneOffData[]>([]);
 	const [selectedRubric, setSelectedRubric] = useState<string | null>(null);
 	const [isStarting, setIsStarting] = useState(false);
 	const { isAuthenticated } = useConvexAuth();
@@ -60,12 +60,12 @@ export default function NewAnalysisPage() {
 	const createAnalysis = useMutation(api.analyses.createAnalysis);
 	const createOneOffAnalysis = useMutation(api.analyses.createOneOffAnalysis);
 
-	const handleValidUrl = useCallback((data: OneOffData) => {
+	const handleValidData = useCallback((data: OneOffData[]) => {
 		setOneOffData(data);
 	}, []);
 
-	const handleInvalidUrl = useCallback(() => {
-		setOneOffData(null);
+	const handleInvalidData = useCallback(() => {
+		setOneOffData([]);
 	}, []);
 
 	const handleStartAnalysis = async () => {
@@ -73,26 +73,32 @@ export default function NewAnalysisPage() {
 
 		setIsStarting(true);
 		try {
-			let analysisId: Id<"analyses">;
-
 			if (analysisMode === "connected") {
 				if (!selectedRepository) return;
-				analysisId = await createAnalysis({
+				const analysisId = await createAnalysis({
 					repositoryId: selectedRepository as Id<"repositories">,
 					rubricId: selectedRubric as Id<"rubrics">,
 				});
+				router.push(`/dashboard/analyses/${analysisId}/progress`);
 			} else {
-				if (!oneOffData) return;
-				analysisId = await createOneOffAnalysis({
-					repositoryUrl: oneOffData.url,
-					repositoryOwner: oneOffData.owner,
-					repositoryName: oneOffData.repo,
-					branch: oneOffData.branch || "main",
-					rubricId: selectedRubric as Id<"rubrics">,
-				});
-			}
+				if (oneOffData.length === 0) return;
+				
+				// Create all analyses in parallel
+				await Promise.all(
+					oneOffData.map((data) =>
+						createOneOffAnalysis({
+							repositoryUrl: data.url,
+							repositoryOwner: data.owner,
+							repositoryName: data.repo,
+							branch: data.branch || "main",
+							rubricId: selectedRubric as Id<"rubrics">,
+						})
+					)
+				);
 
-			router.push(`/dashboard/analyses/${analysisId}/progress`);
+				// Redirect to analyses list since we created multiple
+				router.push("/dashboard/analyses");
+			}
 		} catch (error) {
 			console.error("Failed to start analysis:", error);
 			setIsStarting(false);
@@ -105,7 +111,7 @@ export default function NewAnalysisPage() {
 		selectedRubric &&
 		!isStarting;
 	const canStartOneOff =
-		analysisMode === "one-off" && oneOffData && selectedRubric && !isStarting;
+		analysisMode === "one-off" && oneOffData.length > 0 && selectedRubric && !isStarting;
 	const canStart = canStartConnected || canStartOneOff;
 
 	return (
@@ -144,8 +150,8 @@ export default function NewAnalysisPage() {
 							}
 						>
 							<TabsList className="grid w-full grid-cols-2">
-								<TabsTrigger value="connected">Connected Repos</TabsTrigger>
 								<TabsTrigger value="one-off">Public URL</TabsTrigger>
+								<TabsTrigger value="connected">Connected Repos</TabsTrigger>
 							</TabsList>
 							<TabsContent value="connected" className="mt-4">
 								<RepositorySelector
@@ -155,8 +161,8 @@ export default function NewAnalysisPage() {
 							</TabsContent>
 							<TabsContent value="one-off" className="mt-4">
 								<OneOffAnalysisForm
-									onValidUrl={handleValidUrl}
-									onInvalidUrl={handleInvalidUrl}
+									onValidData={handleValidData}
+									onInvalidData={handleInvalidData}
 								/>
 							</TabsContent>
 						</Tabs>

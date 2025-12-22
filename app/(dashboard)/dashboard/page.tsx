@@ -5,7 +5,6 @@ import {
 	AnalyticsUpIcon,
 	ArrowRight01Icon,
 	FileEditIcon,
-	GitBranchIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -61,7 +60,7 @@ export default function DashboardPage() {
 			</div>
 
 			{/* Quick Actions */}
-			<div className="grid gap-4 md:grid-cols-3">
+			<div className="grid gap-4 md:grid-cols-2">
 				<Card
 					size="sm"
 					className="hover:ring-2 hover:ring-primary/20 transition-all"
@@ -95,25 +94,6 @@ export default function DashboardPage() {
 							</CardTitle>
 							<CardDescription>
 								Create and edit evaluation rubrics for your analyses
-							</CardDescription>
-						</CardHeader>
-					</Link>
-				</Card>
-
-				<Card
-					size="sm"
-					className="hover:ring-2 hover:ring-primary/20 transition-all"
-				>
-					<Link href="/dashboard/repositories" className="block">
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-									<HugeiconsIcon icon={GitBranchIcon} className="size-4" />
-								</div>
-								Repositories
-							</CardTitle>
-							<CardDescription>
-								Connect and manage your GitHub repositories
 							</CardDescription>
 						</CardHeader>
 					</Link>
