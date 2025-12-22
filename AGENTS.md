@@ -1,36 +1,82 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- `app/` holds the Next.js App Router entry (`page.tsx`) and shell (`layout.tsx`) plus global styles in `globals.css`.
-- `components/` contains shared React pieces; `components/ui/` houses the shadcn-style primitives used across screens; `component-example.tsx` is the current showcase.
-- `lib/utils.ts` stores small helpers; prefer adding misc utilities here over scattering them in components.
-- `convex/` contains generated Convex client/server bindings; avoid manual edits and regenerate after Convex schema changes.
-- `public/` is for static assets; build output lands in `.next/`.
+## Project Overview
+This is an **AI-powered code review application**. It allows users to define custom "Rubrics" (sets of criteria) and run AI agents to evaluate GitHub repositories against those rubrics.
 
-## Build, Test, and Development Commands
-- Install deps: `pnpm install` (Node 18+ recommended for Next 16).
-- Local dev server: `pnpm dev` (http://localhost:3000).
-- Production bundle: `pnpm build`; starts from app router and writes to `.next/`.
-- Run prod server: `pnpm start` (requires prior build).
-- Lint: `pnpm lint` uses ESLint with `eslint-config-next` rules; add `--fix` for autofixes.
-- Format & secondary linting: `pnpm biome check .` (uses `biome.json`); `biome format .` enforces tabs and double quotes.
+## Architecture & Tech Stack
 
-## Coding Style & Naming Conventions
-- TypeScript-first, React 19 functional components; keep hooks at top level and avoid `any`, `var`, or `ts-ignore` (Biome enforces).
-- Indentation is tabs; quotes are double by default. Stick to ES modules—CommonJS is blocked.
-- Component files should use `PascalCase` (`ButtonGroup.tsx`); utility modules `camelCase` (`formatDate.ts`).
-- Co-locate styles with components via Tailwind classes; prefer theme tokens defined in `app/globals.css` instead of ad-hoc colors.
+### Frontend
+- **Framework**: Next.js 16 (App Router).
+- **Styling**: Tailwind CSS 4 + shadcn/ui.
+- **State/Data**: Convex React Client (`convex/react`). Real-time updates are core to the UX.
 
-## Testing Guidelines
-- No automated tests are configured yet. When adding, place unit/component specs beside code in `__tests__` folders (e.g., `components/Button/__tests__/Button.test.tsx`).
-- Prefer Vitest + Testing Library for React units and Playwright for critical flows. Document any new scripts in `package.json` and keep coverage expectations explicit in PRs.
+### Backend (Convex)
+- **Database**: Convex provides a reactive database.
+- **Functions**:
+  - `queries`: Read data (fast, reactive).
+  - `mutations`: Write data (transactional).
+  - `actions`: Call third-party APIs (e.g., Clerk).
+- **Schema**: Defined in `convex/schema.ts`.
 
-## Commit & Pull Request Guidelines
-- Follow Conventional Commits (`feat:`, `fix:`, `chore:`, etc.); current history uses `feat: initialize project` as precedent.
-- Keep changes scoped; separate formatting-only commits when practical.
-- PRs should include: concise summary, linked issue/task, screenshots or screen recordings for UI changes, and a short “Verification” list (e.g., `pnpm lint`, `pnpm build`).
-- Mention if Convex artifacts were regenerated and which commands were run.
+### Background Jobs (Trigger.dev)
+- **Orchestration**: Trigger.dev (v3) manages the analysis workflows.
+- **Location**: `trigger/` directory.
+- **Logic**:
+  - Fetching repository content from GitHub.
+  - Parallel execution of AI evaluations for each rubric item.
+  - Interacting with Convex to update status/results.
 
-## Environment & Configuration
-- Keep secrets in `.env.local`; do not commit it. Use `NEXT_PUBLIC_*` only for values safe to expose to the client.
-- If Convex is enabled, ensure local env vars match the Convex dashboard before running `pnpm dev`.
+### AI & LLMs
+- **SDK**: Vercel AI SDK (`ai`).
+- **Models**: Google Gemini (`google/gemini-2.5-flash`) is currently used in `trigger/analyze.ts`.
+
+## Project Structure
+
+- `app/` - Next.js App Router.
+  - `(dashboard)/` - Protected routes (dashboard, analysis, rubrics).
+  - `api/` - API routes (e.g., for webhooks).
+- `components/` - React components.
+  - `ui/` - shadcn/ui primitives.
+- `convex/` - Convex backend code.
+  - `schema.ts` - Database schema.
+  - `*.ts` - Query/Mutation modules.
+- `trigger/` - Trigger.dev background tasks.
+  - `analyze.ts` - Main analysis logic.
+- `lib/` - Shared utilities.
+- `.kiro/` - Documentation and specs.
+
+## Development Guidelines
+
+### 1. Database & Schema (Convex)
+- **Schema Changes**: Edit `convex/schema.ts`. Convex automatically pushes changes in dev.
+- **Data Access**: Always use `query` for reading and `mutation` for writing.
+- **Type Safety**: Use `v` from `convex/values` to define validators.
+
+### 2. Background Tasks (Trigger.dev)
+- **Task Definition**: Define tasks in `trigger/` using `task()`.
+- **Convex Interaction**: Use `ConvexHttpClient` inside Trigger tasks to read/write to Convex.
+- **Testing**: Trigger tasks can be tested using the Trigger.dev dashboard or local dev tools.
+
+### 3. UI Components
+- **Style**: Use Tailwind utility classes.
+- **Components**: Re-use `components/ui` elements.
+- **Icons**: Use `@hugeicons/react`.
+
+### 4. Code Quality
+- **Linting/Formatting**: Run `pnpm biome check .` before committing.
+- **Imports**: Use `@/` alias for root-relative imports.
+
+## Build & Test Commands
+
+- **Install**: `pnpm install`
+- **Dev**: `pnpm dev` (Runs Next.js + Convex). Trigger.dev requires a separate process (`npx trigger.dev@latest dev`).
+- **Lint**: `pnpm biome check .`
+- **Build**: `pnpm build`
+
+## Feature Implementation Status
+Refer to `.kiro/specs/ai-code-review/requirements.md` for detailed feature specifications.
+The current implementation supports:
+- Auth (Clerk)
+- Rubric Management (CRUD)
+- Repository Connection (GitHub) & One-off Analysis
+- Analysis Execution (Trigger.dev) with streaming results
