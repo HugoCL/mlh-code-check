@@ -10,28 +10,27 @@ import { api } from "@/convex/_generated/api";
  * Should be called once when the user is authenticated.
  */
 export function useSyncUser() {
-    const { user, isLoaded } = useUser();
-    const getOrCreateUser = useMutation(api.users.getOrCreateUser);
-    const hasSynced = useRef(false);
+	const { user, isLoaded } = useUser();
+	const getOrCreateUser = useMutation(api.users.getOrCreateUser);
+	const hasSynced = useRef(false);
 
-    useEffect(() => {
-        if (!isLoaded || !user || hasSynced.current) return;
+	useEffect(() => {
+		if (!isLoaded || !user || hasSynced.current) return;
 
-        const syncUser = async () => {
-            try {
-                await getOrCreateUser({
-                    clerkId: user.id,
-                    email: user.primaryEmailAddress?.emailAddress ?? "",
-                    name:
-                        user.fullName ?? user.firstName ?? user.username ?? "Anonymous",
-                    imageUrl: user.imageUrl,
-                });
-                hasSynced.current = true;
-            } catch (error) {
-                console.error("Failed to sync user to Convex:", error);
-            }
-        };
+		const syncUser = async () => {
+			try {
+				await getOrCreateUser({
+					clerkId: user.id,
+					email: user.primaryEmailAddress?.emailAddress ?? "",
+					name: user.fullName ?? user.firstName ?? user.username ?? "Anonymous",
+					imageUrl: user.imageUrl,
+				});
+				hasSynced.current = true;
+			} catch (error) {
+				console.error("Failed to sync user to Convex:", error);
+			}
+		};
 
-        syncUser();
-    }, [isLoaded, user, getOrCreateUser]);
+		syncUser();
+	}, [isLoaded, user, getOrCreateUser]);
 }

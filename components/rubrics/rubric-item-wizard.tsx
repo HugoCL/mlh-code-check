@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Field,
 	FieldContent,
@@ -25,7 +26,6 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { formatOptionList, parseOptionList } from "@/lib/utils";
 
 type EvaluationType =
@@ -113,7 +113,10 @@ const optionsConfigSchema = z
 					message: "Maximum selections must be at least 1",
 					path: ["maxSelections"],
 				});
-			} else if (data.options.length > 0 && data.maxSelections > data.options.length) {
+			} else if (
+				data.options.length > 0 &&
+				data.maxSelections > data.options.length
+			) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
 					message: "Maximum selections cannot exceed the number of options",
@@ -545,9 +548,7 @@ function ConfigSection({
 			);
 
 		case "options":
-			return (
-				<OptionsConfigSection config={config} onChange={onChange} />
-			);
+			return <OptionsConfigSection config={config} onChange={onChange} />;
 
 		case "comments":
 			return (
@@ -633,9 +634,7 @@ function OptionsConfigSection({
 
 			{allowMultiple && (
 				<Field>
-					<FieldLabel htmlFor="max-selections">
-						Maximum Selections
-					</FieldLabel>
+					<FieldLabel htmlFor="max-selections">Maximum Selections</FieldLabel>
 					<FieldDescription>
 						Optional cap on how many options can be selected
 					</FieldDescription>

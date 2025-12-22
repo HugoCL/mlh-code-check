@@ -1,7 +1,7 @@
 import { httpRouter } from "convex/server";
+import { SYSTEM_TEMPLATES } from "../lib/templates.js";
 import { api, internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
-import { SYSTEM_TEMPLATES } from "../lib/templates.js";
 
 const http = httpRouter();
 

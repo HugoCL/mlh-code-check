@@ -239,9 +239,7 @@ function OptionsConfig({
 					}}
 					placeholder="JavaScript&#10;TypeScript&#10;Python&#10;Other"
 					rows={4}
-					className={
-						options.length === 0 ? "border-destructive" : ""
-					}
+					className={options.length === 0 ? "border-destructive" : ""}
 				/>
 				{options.length === 0 && (
 					<p className="text-destructive text-sm">
@@ -273,9 +271,7 @@ function OptionsConfig({
 
 			{allowMultiple && (
 				<Field>
-					<FieldLabel htmlFor="max-selections">
-						Maximum Selections
-					</FieldLabel>
+					<FieldLabel htmlFor="max-selections">Maximum Selections</FieldLabel>
 					<FieldDescription>
 						Optional cap on how many options can be selected
 					</FieldDescription>

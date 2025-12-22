@@ -369,9 +369,7 @@ function AnalysisProgressView({
 		progressMetadata?.totalItems ??
 		rubricItems.length;
 	const completedItems =
-		progressOverride?.completedItems ??
-		progressMetadata?.completedItems ??
-		0;
+		progressOverride?.completedItems ?? progressMetadata?.completedItems ?? 0;
 	const failedItems =
 		progressOverride?.failedItems ?? progressMetadata?.failedItems ?? 0;
 

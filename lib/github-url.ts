@@ -4,28 +4,28 @@
  */
 
 export interface ParsedGitHubUrl {
-    owner: string;
-    repo: string;
-    branch?: string;
+	owner: string;
+	repo: string;
+	branch?: string;
 }
 
 export interface GitHubFileUrlArgs {
-    owner: string;
-    repo: string;
-    branch: string;
-    filePath: string;
-    lineStart?: number;
-    lineEnd?: number;
+	owner: string;
+	repo: string;
+	branch: string;
+	filePath: string;
+	lineStart?: number;
+	lineEnd?: number;
 }
 
 export interface GitHubUrlParseSuccess {
-    success: true;
-    data: ParsedGitHubUrl;
+	success: true;
+	data: ParsedGitHubUrl;
 }
 
 export interface GitHubUrlParseError {
-    success: false;
-    error: string;
+	success: false;
+	error: string;
 }
 
 export type GitHubUrlParseResult = GitHubUrlParseSuccess | GitHubUrlParseError;
@@ -45,117 +45,117 @@ export type GitHubUrlParseResult = GitHubUrlParseSuccess | GitHubUrlParseError;
  * @returns A result object with parsed data or an error message
  */
 export function parseGitHubUrl(url: string): GitHubUrlParseResult {
-    if (!url || typeof url !== "string") {
-        return {
-            success: false,
-            error: "URL is required and must be a string",
-        };
-    }
+	if (!url || typeof url !== "string") {
+		return {
+			success: false,
+			error: "URL is required and must be a string",
+		};
+	}
 
-    const trimmedUrl = url.trim();
+	const trimmedUrl = url.trim();
 
-    if (!trimmedUrl) {
-        return {
-            success: false,
-            error: "URL cannot be empty",
-        };
-    }
+	if (!trimmedUrl) {
+		return {
+			success: false,
+			error: "URL cannot be empty",
+		};
+	}
 
-    // Try SSH format: git@github.com:owner/repo.git or git@github.com:owner/repo
-    const sshMatch = trimmedUrl.match(
-        /^git@github\.com:([^/]+)\/([^/]+?)(\.git)?$/
-    );
-    if (sshMatch) {
-        const owner = sshMatch[1];
-        const repo = sshMatch[2];
+	// Try SSH format: git@github.com:owner/repo.git or git@github.com:owner/repo
+	const sshMatch = trimmedUrl.match(
+		/^git@github\.com:([^/]+)\/([^/]+?)(\.git)?$/,
+	);
+	if (sshMatch) {
+		const owner = sshMatch[1];
+		const repo = sshMatch[2];
 
-        if (!isValidOwnerOrRepo(owner) || !isValidOwnerOrRepo(repo)) {
-            return {
-                success: false,
-                error: "Invalid owner or repository name in URL",
-            };
-        }
+		if (!isValidOwnerOrRepo(owner) || !isValidOwnerOrRepo(repo)) {
+			return {
+				success: false,
+				error: "Invalid owner or repository name in URL",
+			};
+		}
 
-        return {
-            success: true,
-            data: { owner, repo },
-        };
-    }
+		return {
+			success: true,
+			data: { owner, repo },
+		};
+	}
 
-    // Try HTTPS formats
-    let parsedUrl: URL;
-    try {
-        parsedUrl = new URL(trimmedUrl);
-    } catch {
-        return {
-            success: false,
-            error: "Invalid URL format",
-        };
-    }
+	// Try HTTPS formats
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(trimmedUrl);
+	} catch {
+		return {
+			success: false,
+			error: "Invalid URL format",
+		};
+	}
 
-    // Validate protocol
-    if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
-        return {
-            success: false,
-            error: "URL must use HTTP or HTTPS protocol",
-        };
-    }
+	// Validate protocol
+	if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+		return {
+			success: false,
+			error: "URL must use HTTP or HTTPS protocol",
+		};
+	}
 
-    // Validate it's a GitHub URL
-    if (
-        parsedUrl.hostname !== "github.com" &&
-        parsedUrl.hostname !== "www.github.com"
-    ) {
-        return {
-            success: false,
-            error: "URL must be a GitHub repository URL (github.com)",
-        };
-    }
+	// Validate it's a GitHub URL
+	if (
+		parsedUrl.hostname !== "github.com" &&
+		parsedUrl.hostname !== "www.github.com"
+	) {
+		return {
+			success: false,
+			error: "URL must be a GitHub repository URL (github.com)",
+		};
+	}
 
-    // Parse the pathname
-    const pathname = parsedUrl.pathname;
+	// Parse the pathname
+	const pathname = parsedUrl.pathname;
 
-    // Remove leading slash and split
-    const parts = pathname.replace(/^\//, "").split("/").filter(Boolean);
+	// Remove leading slash and split
+	const parts = pathname.replace(/^\//, "").split("/").filter(Boolean);
 
-    if (parts.length < 2) {
-        return {
-            success: false,
-            error: "URL must include owner and repository name",
-        };
-    }
+	if (parts.length < 2) {
+		return {
+			success: false,
+			error: "URL must include owner and repository name",
+		};
+	}
 
-    const owner = parts[0];
-    let repo = parts[1];
+	const owner = parts[0];
+	let repo = parts[1];
 
-    // Remove .git suffix if present
-    if (repo.endsWith(".git")) {
-        repo = repo.slice(0, -4);
-    }
+	// Remove .git suffix if present
+	if (repo.endsWith(".git")) {
+		repo = repo.slice(0, -4);
+	}
 
-    if (!isValidOwnerOrRepo(owner) || !isValidOwnerOrRepo(repo)) {
-        return {
-            success: false,
-            error: "Invalid owner or repository name in URL",
-        };
-    }
+	if (!isValidOwnerOrRepo(owner) || !isValidOwnerOrRepo(repo)) {
+		return {
+			success: false,
+			error: "Invalid owner or repository name in URL",
+		};
+	}
 
-    // Check for branch in /tree/branch format
-    // Branch names can contain slashes, so we join all remaining parts after "tree"
-    let branch: string | undefined;
-    if (parts.length >= 4 && parts[2] === "tree") {
-        // Join all parts after "tree" to support branch names with slashes
-        branch = parts.slice(3).join("/");
-    }
+	// Check for branch in /tree/branch format
+	// Branch names can contain slashes, so we join all remaining parts after "tree"
+	let branch: string | undefined;
+	if (parts.length >= 4 && parts[2] === "tree") {
+		// Join all parts after "tree" to support branch names with slashes
+		branch = parts.slice(3).join("/");
+	}
 
-    return {
-        success: true,
-        data: {
-            owner,
-            repo,
-            ...(branch && { branch }),
-        },
-    };
+	return {
+		success: true,
+		data: {
+			owner,
+			repo,
+			...(branch && { branch }),
+		},
+	};
 }
 
 /**
@@ -164,19 +164,20 @@ export function parseGitHubUrl(url: string): GitHubUrlParseResult {
  * but cannot start or end with a hyphen, and cannot have consecutive hyphens.
  */
 function isValidOwnerOrRepo(name: string): boolean {
-    if (!name || name.length === 0) {
-        return false;
-    }
+	if (!name || name.length === 0) {
+		return false;
+	}
 
-    // GitHub names can contain alphanumeric characters, hyphens, underscores, and dots
-    // They cannot be empty and have reasonable length limits
-    if (name.length > 100) {
-        return false;
-    }
+	// GitHub names can contain alphanumeric characters, hyphens, underscores, and dots
+	// They cannot be empty and have reasonable length limits
+	if (name.length > 100) {
+		return false;
+	}
 
-    // Basic validation - alphanumeric, hyphens, underscores, dots
-    const validPattern = /^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$|^[a-zA-Z0-9]$/;
-    return validPattern.test(name);
+	// Basic validation - alphanumeric, hyphens, underscores, dots
+	const validPattern =
+		/^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$|^[a-zA-Z0-9]$/;
+	return validPattern.test(name);
 }
 
 /**
@@ -187,37 +188,37 @@ function isValidOwnerOrRepo(name: string): boolean {
  * @returns A normalized HTTPS GitHub URL
  */
 export function constructGitHubUrl(data: ParsedGitHubUrl): string {
-    const baseUrl = `https://github.com/${data.owner}/${data.repo}`;
-    if (data.branch) {
-        return `${baseUrl}/tree/${data.branch}`;
-    }
-    return baseUrl;
+	const baseUrl = `https://github.com/${data.owner}/${data.repo}`;
+	if (data.branch) {
+		return `${baseUrl}/tree/${data.branch}`;
+	}
+	return baseUrl;
 }
 
 /**
  * Constructs a GitHub file URL with optional line range anchors.
  */
 export function constructGitHubFileUrl({
-    owner,
-    repo,
-    branch,
-    filePath,
-    lineStart,
-    lineEnd,
+	owner,
+	repo,
+	branch,
+	filePath,
+	lineStart,
+	lineEnd,
 }: GitHubFileUrlArgs): string {
-    const encodedBranch = encodePathSegments(branch);
-    const encodedPath = encodePathSegments(filePath);
-    const baseUrl = `https://github.com/${owner}/${repo}/blob/${encodedBranch}/${encodedPath}`;
+	const encodedBranch = encodePathSegments(branch);
+	const encodedPath = encodePathSegments(filePath);
+	const baseUrl = `https://github.com/${owner}/${repo}/blob/${encodedBranch}/${encodedPath}`;
 
-    if (lineStart && lineEnd && lineEnd !== lineStart) {
-        return `${baseUrl}#L${lineStart}-L${lineEnd}`;
-    }
+	if (lineStart && lineEnd && lineEnd !== lineStart) {
+		return `${baseUrl}#L${lineStart}-L${lineEnd}`;
+	}
 
-    if (lineStart) {
-        return `${baseUrl}#L${lineStart}`;
-    }
+	if (lineStart) {
+		return `${baseUrl}#L${lineStart}`;
+	}
 
-    return baseUrl;
+	return baseUrl;
 }
 
 /**
@@ -227,13 +228,13 @@ export function constructGitHubFileUrl({
  * @returns true if the URL is a valid GitHub repository URL
  */
 export function isGitHubUrl(url: string): boolean {
-    return parseGitHubUrl(url).success;
+	return parseGitHubUrl(url).success;
 }
 
 function encodePathSegments(path: string): string {
-    return path
-        .split("/")
-        .filter(Boolean)
-        .map((segment) => encodeURIComponent(segment))
-        .join("/");
+	return path
+		.split("/")
+		.filter(Boolean)
+		.map((segment) => encodeURIComponent(segment))
+		.join("/");
 }

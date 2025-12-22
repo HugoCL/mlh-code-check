@@ -4,16 +4,15 @@ import { SignedIn, UserButton } from "@clerk/nextjs";
 import {
 	Add01Icon,
 	AnalyticsUpIcon,
-	InvestigationIcon,
 	FileEditIcon,
 	GitBranchIcon,
 	Home01Icon,
+	InvestigationIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useSyncUser } from "@/hooks/use-sync-user";
 import {
 	Sidebar,
 	SidebarContent,
@@ -29,6 +28,7 @@ import {
 	SidebarProvider,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useSyncUser } from "@/hooks/use-sync-user";
 
 const navigationItems = [
 	{

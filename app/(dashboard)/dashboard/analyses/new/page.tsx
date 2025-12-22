@@ -82,7 +82,7 @@ export default function NewAnalysisPage() {
 				router.push(`/dashboard/analyses/${analysisId}/progress`);
 			} else {
 				if (oneOffData.length === 0) return;
-				
+
 				// Create all analyses in parallel
 				await Promise.all(
 					oneOffData.map((data) =>
@@ -92,8 +92,8 @@ export default function NewAnalysisPage() {
 							repositoryName: data.repo,
 							branch: data.branch || "main",
 							rubricId: selectedRubric as Id<"rubrics">,
-						})
-					)
+						}),
+					),
 				);
 
 				// Redirect to analyses list since we created multiple
@@ -111,7 +111,10 @@ export default function NewAnalysisPage() {
 		selectedRubric &&
 		!isStarting;
 	const canStartOneOff =
-		analysisMode === "one-off" && oneOffData.length > 0 && selectedRubric && !isStarting;
+		analysisMode === "one-off" &&
+		oneOffData.length > 0 &&
+		selectedRubric &&
+		!isStarting;
 	const canStart = canStartConnected || canStartOneOff;
 
 	return (

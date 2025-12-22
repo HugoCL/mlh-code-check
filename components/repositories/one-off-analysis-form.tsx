@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { parseGitHubUrl, type ParsedGitHubUrl } from "@/lib/github-url";
+import { type ParsedGitHubUrl, parseGitHubUrl } from "@/lib/github-url";
 
 interface OneOffData extends ParsedGitHubUrl {
 	url: string;
@@ -130,13 +130,21 @@ export function OneOffAnalysisForm({
 						</div>
 					)}
 				</div>
-				
+
 				{validationState !== "idle" && (
 					<div className="flex gap-4 text-xs">
-						<div className={validCount > 0 ? "text-green-600" : "text-muted-foreground"}>
+						<div
+							className={
+								validCount > 0 ? "text-green-600" : "text-muted-foreground"
+							}
+						>
 							<span className="font-medium">{validCount}</span> valid
 						</div>
-						<div className={invalidCount > 0 ? "text-destructive" : "text-muted-foreground"}>
+						<div
+							className={
+								invalidCount > 0 ? "text-destructive" : "text-muted-foreground"
+							}
+						>
 							<span className="font-medium">{invalidCount}</span> invalid
 						</div>
 					</div>

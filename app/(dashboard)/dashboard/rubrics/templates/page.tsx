@@ -320,8 +320,7 @@ function TemplateViewDialog({
 									{item.evaluationType === "options" &&
 										item.config?.options && (
 											<div className="text-xs text-muted-foreground">
-												Options:{" "}
-												{item.config.options.slice(0, 4).join(", ")}
+												Options: {item.config.options.slice(0, 4).join(", ")}
 												{item.config.options.length > 4
 													? ` +${item.config.options.length - 4} more`
 													: ""}

@@ -708,7 +708,6 @@ describe("Property 19: Filter correctness", () => {
 	});
 });
 
-
 // Arbitrary for generating valid GitHub owner/repo names
 const gitHubNameArbitrary = fc
 	.stringMatching(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,38}[a-zA-Z0-9]$/)

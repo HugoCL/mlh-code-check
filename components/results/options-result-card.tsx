@@ -33,11 +33,11 @@ export function OptionsResultCard({
 			<CardContent>
 				{result.selections.length > 0 ? (
 					<div className="flex flex-wrap gap-2">
-					{result.selections.map((selection, index) => (
-						<Badge key={`${selection}-${index}`} variant="secondary">
-							{selection}
-						</Badge>
-					))}
+						{result.selections.map((selection, index) => (
+							<Badge key={`${selection}-${index}`} variant="secondary">
+								{selection}
+							</Badge>
+						))}
 					</div>
 				) : (
 					<p className="text-sm text-muted-foreground">

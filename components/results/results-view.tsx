@@ -24,10 +24,7 @@ import {
 	type CommentsResult,
 	CommentsResultCard,
 } from "./comments-result-card";
-import {
-	type OptionsResult,
-	OptionsResultCard,
-} from "./options-result-card";
+import { type OptionsResult, OptionsResultCard } from "./options-result-card";
 import { type RangeResult, RangeResultCard } from "./range-result-card";
 import { type YesNoResult, YesNoResultCard } from "./yes-no-result-card";
 
