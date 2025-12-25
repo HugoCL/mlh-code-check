@@ -721,30 +721,33 @@ function constructPrompt(payload: RubricItemPayload): string {
 	const { itemName, itemDescription, evaluationType, repositoryContent } =
 		payload;
 
-	const basePrompt = `
-You are a code reviewer evaluating a repository against specific criteria.
+	const filesSection = repositoryContent.files
+		.map((file) => `--- ${file.path} ---\n${file.content}`)
+		.join("\n\n");
 
-Repository Structure:
-${repositoryContent.structure}
+	const basePrompt = `\
+		You are a code reviewer evaluating a repository against specific criteria.
 
-Files:
-${repositoryContent.files.map((file) => `--- ${file.path} ---\n${file.content}`).join("\n\n")}
+		Repository Structure:
+		${repositoryContent.structure}
 
-Evaluation Criteria:
-Name: ${itemName}
-Description: ${itemDescription}
-	`.trim();
+		Files:
+		${filesSection}
+
+		Evaluation Criteria:
+		Name: ${itemName}
+		Description: ${itemDescription}`;
 
 	switch (evaluationType) {
 		case "yes_no":
 			return `${basePrompt}
 
-Please evaluate whether this repository meets the criteria. Respond with a JSON object containing:
-- "value": boolean (true if criteria is met, false otherwise)
-- "justification": string (explanation of your evaluation)
+			Please evaluate whether this repository meets the criteria. Respond with a JSON object containing:
+			- "value": boolean (true if criteria is met, false otherwise)
+			- "justification": string (explanation of your evaluation)
 
-Example response:
-{"value": true, "justification": "The code follows proper TypeScript conventions..."}`;
+			Example response:
+			{"value": true, "justification": "The code follows proper TypeScript conventions..."}`;
 
 		case "range": {
 			const config = payload.config || {};
@@ -752,54 +755,51 @@ Example response:
 			const max = config.maxValue ?? 100;
 			const guidance = config.rangeGuidance ?? "";
 
-			// Debug logging to see what we're getting
 			console.log("Range evaluation config:", JSON.stringify(config, null, 2));
 			console.log("Range guidance:", guidance);
 
 			let guidanceSection = "";
 			if (guidance && guidance.trim()) {
 				guidanceSection = `
-Score Guidance (use this to determine the appropriate score):
-${guidance}
-`;
+				Score Guidance (use this to determine the appropriate score):
+				${guidance}`;
 			} else {
 				console.warn("No range guidance provided for range evaluation");
 			}
 
-			return `${basePrompt}
-${guidanceSection}
-Please evaluate this repository on a scale from ${min} to ${max}. Respond with a JSON object containing:
-- "value": number (score between ${min} and ${max})
-- "min": ${min}
-- "max": ${max}
-- "rationale": string (explanation of your score based on the guidance criteria)
+			return `${basePrompt}${guidanceSection}
+				Please evaluate this repository on a scale from ${min} to ${max}. Respond with a JSON object containing:
+				- "value": number (score between ${min} and ${max})
+				- "min": ${min}
+				- "max": ${max}
+				- "rationale": string (explanation of your score based on the guidance criteria)
 
-Example response:
-{"value": 3, "min": ${min}, "max": ${max}, "rationale": "Based on the scoring guidance, the repository demonstrates..."}`;
+				Example response:
+				{"value": 3, "min": ${min}, "max": ${max}, "rationale": "Based on the scoring guidance, the repository demonstrates..."}`;
 		}
 
 		case "comments":
 			return `${basePrompt}
 
-Please provide detailed feedback about this repository. Respond with a JSON object containing:
-- "feedback": string (detailed comments and suggestions)
+			Please provide detailed feedback about this repository. Respond with a JSON object containing:
+			- "feedback": string (detailed comments and suggestions)
 
-Example response:
-{"feedback": "The repository shows good structure but could benefit from..."}`;
+			Example response:
+			{"feedback": "The repository shows good structure but could benefit from..."}`;
 
 		case "code_examples":
 			return `${basePrompt}
 
-Please identify specific code examples that relate to the evaluation criteria. Respond with a JSON object containing:
-- "examples": array of objects, each with:
-  - "filePath": string
-  - "lineStart": number
-  - "lineEnd": number
-  - "code": string (the relevant code snippet)
-  - "explanation": string (why this code is relevant)
+			Please identify specific code examples that relate to the evaluation criteria. Respond with a JSON object containing:
+			- "examples": array of objects, each with:
+			  - "filePath": string
+			  - "lineStart": number
+			  - "lineEnd": number
+			  - "code": string (the relevant code snippet)
+			  - "explanation": string (why this code is relevant)
 
-Example response:
-{"examples": [{"filePath": "src/main.ts", "lineStart": 1, "lineEnd": 3, "code": "console.log('Hello');", "explanation": "This demonstrates..."}]}`;
+			Example response:
+			{"examples": [{"filePath": "src/main.ts", "lineStart": 1, "lineEnd": 3, "code": "console.log('Hello');", "explanation": "This demonstrates..."}]}`;
 
 		case "options": {
 			const config = payload.config || {};
@@ -817,22 +817,21 @@ Example response:
 
 			const maxGuidance =
 				allowMultiple && maxSelections
-					? `Select at most ${maxSelections} option${maxSelections === 1 ? "" : "s"}.`
+					? ` Select at most ${maxSelections} option${maxSelections === 1 ? "" : "s"}.`
 					: "";
 
 			return `${basePrompt}
 
-Options:
-${optionList}
+			Options:
+			${optionList}
 
-${selectionGuidance}
-${maxGuidance}
+			${selectionGuidance}${maxGuidance}
 
-Respond with a JSON object containing:
-- "selections": array of strings (each must match one of the options exactly)
+			Respond with a JSON object containing:
+			- "selections": array of strings (each must match one of the options exactly)
 
-Example response:
-{"selections": ["TypeScript"]}`;
+			Example response:
+			{"selections": ["TypeScript"]}`;
 		}
 
 		default:
