@@ -19,9 +19,8 @@ const userCreatedEvent = JSON.stringify({
 });
 
 /** Sign a body the same way Clerk (Svix) does. */
-function signedHeaders(body: string, secret = SECRET) {
+function signedHeaders(body: string, secret = SECRET, timestamp = new Date()) {
 	const id = "msg_test_1";
-	const timestamp = new Date();
 	return {
 		"svix-id": id,
 		"svix-timestamp": Math.floor(timestamp.getTime() / 1000).toString(),
@@ -125,6 +124,67 @@ describe("Integration: Clerk webhook signature verification", () => {
 		});
 
 		expect(response.status).toBe(500);
+		expect(await getUsers(t)).toHaveLength(0);
+	});
+
+	it("rejects a validly signed request with a stale timestamp", async () => {
+		const t = convexTest(schema, modules);
+		const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+		const response = await post(
+			t,
+			userCreatedEvent,
+			signedHeaders(userCreatedEvent, SECRET, anHourAgo),
+		);
+
+		expect(response.status).toBe(400);
+		expect(await getUsers(t)).toHaveLength(0);
+	});
+
+	it("returns 500 when the secret is malformed", async () => {
+		process.env.CLERK_WEBHOOK_SECRET = "whsec_";
+		const t = convexTest(schema, modules);
+
+		const response = await post(
+			t,
+			userCreatedEvent,
+			signedHeaders(userCreatedEvent),
+		);
+
+		expect(response.status).toBe(500);
+		expect(await getUsers(t)).toHaveLength(0);
+	});
+
+	it("returns 200 without writing a user for non-user events", async () => {
+		const t = convexTest(schema, modules);
+		const body = JSON.stringify({
+			type: "session.created",
+			data: { id: "sess_1" },
+		});
+
+		const response = await post(t, body, signedHeaders(body));
+
+		expect(response.status).toBe(200);
+		expect(await getUsers(t)).toHaveLength(0);
+	});
+
+	it("returns 400 for a signed body that is not valid JSON", async () => {
+		const t = convexTest(schema, modules);
+		const body = "not json";
+
+		const response = await post(t, body, signedHeaders(body));
+
+		expect(response.status).toBe(400);
+		expect(await getUsers(t)).toHaveLength(0);
+	});
+
+	it("returns 400 for a signed payload without a string type", async () => {
+		const t = convexTest(schema, modules);
+		const body = JSON.stringify({ data: {} });
+
+		const response = await post(t, body, signedHeaders(body));
+
+		expect(response.status).toBe(400);
 		expect(await getUsers(t)).toHaveLength(0);
 	});
 });

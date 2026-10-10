@@ -45,19 +45,41 @@ http.route({
 		// Signature verification needs the exact raw body, so don't use .json()
 		const body = await request.text();
 
-		let payload: ClerkUserEvent;
+		let webhook: Webhook;
+		try {
+			webhook = new Webhook(secret);
+		} catch (error) {
+			console.error("CLERK_WEBHOOK_SECRET is malformed", error);
+			return new Response("Webhook secret misconfigured", { status: 500 });
+		}
+
 		try {
 			// svix >= 2 verify() throws on failure but no longer returns the
 			// payload, so parse the body ourselves once it has been verified.
-			new Webhook(secret).verify(body, {
+			webhook.verify(body, {
 				"svix-id": svixId,
 				"svix-timestamp": svixTimestamp,
 				"svix-signature": svixSignature,
 			});
-			payload = JSON.parse(body) as ClerkUserEvent;
 		} catch (error) {
 			console.error("Clerk webhook signature verification failed", error);
 			return new Response("Invalid signature", { status: 400 });
+		}
+
+		let payload: ClerkUserEvent;
+		try {
+			payload = JSON.parse(body) as ClerkUserEvent;
+		} catch (error) {
+			console.error("Clerk webhook body is not valid JSON", error);
+			return new Response("Invalid JSON", { status: 400 });
+		}
+
+		if (
+			typeof payload !== "object" ||
+			payload === null ||
+			typeof payload.type !== "string"
+		) {
+			return new Response("Invalid event payload", { status: 400 });
 		}
 
 		const eventType = payload.type;
