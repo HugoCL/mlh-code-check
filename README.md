@@ -20,6 +20,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment variables
+
+Copy `.env.example` to `.env.local` for local development. Not every variable lives in the same place:
+
+| Variable | Where it's set | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_CONVEX_URL` | Next.js (`.env.local` / Vercel); also Trigger.dev | Convex deployment URL. |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Next.js (`.env.local` / Vercel) | Clerk publishable key. |
+| `CLERK_SECRET_KEY` | Next.js (`.env.local` / Vercel) | Clerk secret key. |
+| `CLERK_JWT_ISSUER_DOMAIN` | **Convex** deployment | Clerk JWT issuer domain, used by `convex/auth.config.ts`. |
+| `CLERK_WEBHOOK_SECRET` | **Convex** deployment | Svix signing secret for `POST /clerk-webhook` (Clerk Dashboard > Webhooks > endpoint > Signing Secret). Set it in the Convex dashboard or with `npx convex env set CLERK_WEBHOOK_SECRET whsec_...`. If unset, the webhook returns 500 for every event. |
+| `GITHUB_TOKEN` | Trigger.dev | Optional. GitHub token for higher API rate limits. |
+| `AI_GATEWAY_API_KEY` | Trigger.dev | API key for the Vercel AI Gateway, used for the `google/gemini-2.5-flash` model. |
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
