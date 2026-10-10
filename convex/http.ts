@@ -1,19 +1,87 @@
 import { httpRouter } from "convex/server";
+import { Webhook } from "svix";
 import { SYSTEM_TEMPLATES } from "../lib/templates.js";
 import { api, internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 
 const http = httpRouter();
 
+// Minimal shape of the Clerk user events we handle
+interface ClerkUserEvent {
+	type: string;
+	data: {
+		id: string;
+		email_addresses?: { id: string; email_address: string }[];
+		primary_email_address_id?: string | null;
+		first_name?: string | null;
+		last_name?: string | null;
+		image_url?: string;
+	};
+}
+
 /**
  * Clerk webhook handler for user events.
  * This endpoint receives webhooks from Clerk when user events occur.
+ * Requests are authenticated with the Svix signature headers using
+ * CLERK_WEBHOOK_SECRET (set as a Convex deployment environment variable).
  */
 http.route({
 	path: "/clerk-webhook",
 	method: "POST",
 	handler: httpAction(async (ctx, request) => {
-		const payload = await request.json();
+		const secret = process.env.CLERK_WEBHOOK_SECRET;
+		if (!secret) {
+			console.error("CLERK_WEBHOOK_SECRET is not set");
+			return new Response("Webhook secret not configured", { status: 500 });
+		}
+
+		const svixId = request.headers.get("svix-id");
+		const svixTimestamp = request.headers.get("svix-timestamp");
+		const svixSignature = request.headers.get("svix-signature");
+		if (!svixId || !svixTimestamp || !svixSignature) {
+			return new Response("Missing svix headers", { status: 400 });
+		}
+
+		// Signature verification needs the exact raw body, so don't use .json()
+		const body = await request.text();
+
+		let webhook: Webhook;
+		try {
+			webhook = new Webhook(secret);
+		} catch (error) {
+			console.error("CLERK_WEBHOOK_SECRET is malformed", error);
+			return new Response("Webhook secret misconfigured", { status: 500 });
+		}
+
+		try {
+			// svix >= 2 verify() throws on failure but no longer returns the
+			// payload, so parse the body ourselves once it has been verified.
+			webhook.verify(body, {
+				"svix-id": svixId,
+				"svix-timestamp": svixTimestamp,
+				"svix-signature": svixSignature,
+			});
+		} catch (error) {
+			console.error("Clerk webhook signature verification failed", error);
+			return new Response("Invalid signature", { status: 400 });
+		}
+
+		let payload: ClerkUserEvent;
+		try {
+			payload = JSON.parse(body) as ClerkUserEvent;
+		} catch (error) {
+			console.error("Clerk webhook body is not valid JSON", error);
+			return new Response("Invalid JSON", { status: 400 });
+		}
+
+		if (
+			typeof payload !== "object" ||
+			payload === null ||
+			typeof payload.type !== "string"
+		) {
+			return new Response("Invalid event payload", { status: 400 });
+		}
+
 		const eventType = payload.type;
 
 		if (eventType === "user.created" || eventType === "user.updated") {
@@ -21,8 +89,7 @@ http.route({
 				payload.data;
 
 			const primaryEmail = email_addresses?.find(
-				(email: { id: string }) =>
-					email.id === payload.data.primary_email_address_id,
+				(email) => email.id === payload.data.primary_email_address_id,
 			);
 
 			const name = [first_name, last_name].filter(Boolean).join(" ") || "User";

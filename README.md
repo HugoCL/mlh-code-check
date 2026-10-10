@@ -77,7 +77,7 @@ npx trigger.dev@latest dev
 Setup notes:
 
 - In Clerk, create a JWT template named `convex` (the server action requests a token with that name) and set `CLERK_JWT_ISSUER_DOMAIN` in the Convex dashboard to your Clerk frontend API URL.
-- Optional: add a Clerk webhook pointing to your Convex site URL at `/clerk-webhook` for `user.created` and `user.updated` events, so users are synced to Convex.
+- Optional: add a Clerk webhook pointing to your Convex site URL at `/clerk-webhook` for `user.created` and `user.updated` events, so users are synced to Convex. Requests are verified with the Svix signature headers, so copy the endpoint's Signing Secret (Clerk Dashboard > Webhooks > endpoint) into the Convex deployment: `npx convex env set CLERK_WEBHOOK_SECRET whsec_...`. Without it the endpoint returns 500 for every event.
 - `trigger.config.ts` has the author's Trigger.dev project id. Replace `project` with your own.
 - Trigger.dev tasks run in their own environment. Set `NEXT_PUBLIC_CONVEX_URL`, `GITHUB_TOKEN` and `AI_GATEWAY_API_KEY` in your Trigger.dev project, not only in `.env.local`.
 
@@ -90,6 +90,7 @@ Setup notes:
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `.env.local` | Clerk publishable key | Yes |
 | `CLERK_SECRET_KEY` | `.env.local` | Clerk secret key | Yes |
 | `CLERK_JWT_ISSUER_DOMAIN` | Convex dashboard | Clerk issuer domain for validating JWTs | Yes |
+| `CLERK_WEBHOOK_SECRET` | Convex dashboard | Svix signing secret that verifies Clerk webhook requests | Only if you use the webhook |
 | `TRIGGER_SECRET_KEY` | `.env.local` | Lets the server action trigger tasks and create run tokens | Yes |
 | `GITHUB_TOKEN` | Trigger.dev | Raises GitHub API rate limits and allows private repositories | Recommended |
 | `AI_GATEWAY_API_KEY` | Trigger.dev | Vercel AI Gateway key used to call the model | Yes |
